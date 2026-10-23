@@ -237,6 +237,92 @@ Il valore vero di queste corse è stato quindi trovare **dove le sonde mentono**
 al lupo ogni due minuti non serve a nessuno. Adesso le corse escono pulite e le sonde sono provate con
 difetti iniettati a mano (`prova_swarm_sonda_viva.js`).
 
+## Giocatori veri: account, amici, negozio, richieste (`--vite`)
+
+Le sonde misuravano il motore. Questa modalità misura **il gioco come prodotto**: le code,
+le amicizie, i punti, il negozio e quello che un giocatore vorrebbe trovare.
+
+```bash
+node tools/swarm/index.js --vite --bot 2 --partite 2 --minuti 10
+```
+
+Cosa fa ogni giocatore, in ordine:
+
+1. **si iscrive davvero** (`POST /api/iscrizione`) e l'account resta: al giro dopo fa accesso,
+   quindi punti ed ELO si accumulano invece di ripartire da zero (`bug_reports/giocatori.json`);
+2. **si aggiunge agli amici**: cerca gli altri per nick, manda la richiesta, e al secondo
+   passaggio accetta quelle ricevute (entrambe le rotte vengono provate);
+3. **compra**: legge `GET /api/negozio` e prende la voce più cara che i punti coprono. Se il
+   negozio mostra una cosa a un prezzo che i punti non coprono, è un difetto e lo segnala;
+4. **gioca ranked fra loro**, in coppie ruotate, con la stessa meccanica online di prima
+   (controllo di desync compreso);
+5. **pretende**: a fine sessione ognuno scrive le sue richieste.
+
+### La personalità non è decorazione
+
+Ci sono sei caratteri (`giocatore.js`): aggressivo, tecnico, collezionista, casual, veterano,
+sociale. Ognuno ha una **soglia di pazienza**, degli argomenti su cui è fissato e un modo di
+parlare. Serve a non avere cento rapporti che dicono la stessa frase: un `casual` si lamenta
+che "non si capisce cosa devi fare", un `tecnico` cita frame di recupero e desync.
+
+### Le richieste si accumulano, non si perdono
+
+`desideri.js` trasforma i fatti vissuti in richieste, e ogni richiesta porta la **fonte**: il
+fatto misurato che l'ha generata ("3 occorrenze di `colpo-senza-danno`", "5 punti su 9 voci
+comprabili: zero"). Senza fonte è un'opinione.
+
+Lo storico è **condiviso fra le corse** e cresce:
+
+- `bug_reports/richieste.jsonl` — ogni richiesta, in append;
+- `bug_reports/RICHIESTE.md` — il documento per decidere, rigenerato a ogni corsa.
+
+L'ordinamento è per **peso = menzioni × caratteri distinti × priorità**: una cosa chiesta da
+cinque caratteri diversi conta più di una ripetuta dieci volte dallo stesso. I difetti stanno
+in cima, le funzionalità in fondo: si legge dall'alto e si decide.
+
+### Due errori pagati costruendo questa modalità
+
+| sintomo | causa vera |
+|---|---|
+| una partita sola dava **1 vinta e 1 persa a entrambi** | ogni bot sommava l'esito suo **e** quello dell'altro (4 esiti per 2 giocatori). Ora ogni bot conta solo la propria vista |
+| il triage leggeva **zero richieste** appena scritte | `accumula()` usava uno stream: il file non era ancora su disco quando `rilancia()` lo rileggeva. Ora scrive in modo sincrono |
+| acquisto sempre a **404 "Lottatore non presente nel negozio"** | l'API legge `corpo.chiave` (o `personaggio` per i client vecchi): mandavo `{voce: ...}`. La chiave era giusta, il campo no. `diagnosi_acquisto.js` distingue i due casi: **402 = chiave giusta, punti insufficienti**, **404 = chiave sbagliata** |
+| falsi allarmi `richiesta-amicizia-fallita` a ogni ciclo | chiedere l'amicizia a chi è già amico dà **409**, che non è un difetto. La ricerca amici restituisce già `relazione` (`amico`, `richiestaInviata`, `richiestaRicevuta`): ora si guarda quella prima di chiamare |
+
+## Verifiche di base: errori, invarianti, persistenza
+
+Un giocatore dà per scontate tre cose che nessuno provava. Stanno in
+`tools/swarm/verifiche.js` e girano a ogni ciclo della modalità `--vite`.
+
+**1. Percorsi d'errore.** Cosa succede quando sbagli: nickname di due lettere,
+password corta, accesso con password errata, profilo/negozio senza token,
+amicizia con se stessi, amicizia verso un nick inesistente, acquisto senza punti.
+L'attesa è quella che percepisce il giocatore ("mi deve dire che il nick è
+troppo corto"), non la forma della specifica. Si provano con un **account usa e
+getta**, così i giocatori della corsa non vengono toccati.
+
+**2. Invarianti.** Punti mai negativi, ELO mai sotto il minimo (100), vittorie +
+sconfitte che non superano le partite giocate. Si controllano **all'inizio e alla
+fine** della corsa: dopo punti, acquisti e partite è il momento in cui uno stato
+impossibile avrebbe spazio.
+
+**3. Persistenza al ricaricamento.** Si entra con un token valido, si legge lo
+stato, si **ricarica davvero la pagina**, si rilegge e si confronta. È la prova
+che ha trovato il difetto della skin: il server sapeva, il client no, e il
+giocatore perdeva quello che aveva comprato.
+
+**4. Punti accreditati.** Prima e dopo ogni partita si legge il profilo e si
+guarda la variazione. Se non corrisponde alla tabella è un difetto; se è
+**esattamente il doppio**, la firma è `punti-accreditati-due-volte` ed è quello
+che succede quando entrambi i client concludono la propria partita.
+
+### Il ciclo completo di un'amicizia
+
+Prima si provava solo l'accettazione. Ora si prova tutto il giro: richiesta →
+**rifiuto** → nuova richiesta → **accettazione** → presenza in elenco →
+**rimozione** → assenza dall'elenco. Ogni passo con la sua attesa.
+
 ## Cosa non fa (per ora)
-- Non apre issue GitHub: i difetti restano in `bug_reports/`.
+- Non apre issue GitHub: i difetti e le richieste restano in `bug_reports/`.
 - Non manda i report al server (`POST /report` è limitato a 20 per IP ogni 10 minuti).
+- Non gioca tornei né modalità diverse dalla ranked: quelle non esistono ancora nel gioco.

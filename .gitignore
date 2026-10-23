@@ -21,3 +21,12 @@ requirements.compiled
 
 # Artefatti delle corse dello sciame di bot (rapporto e screenshot di una prova)
 bug_reports/swarm-*/
+
+# Archivio dei giocatori: cresce a ogni corsa, è dato locale non codice
+bug_reports/richieste.jsonl
+bug_reports/giocatori.json
+bug_reports/RICHIESTE.md
+bug_reports/*.bak-*
+
+# raccolta dei sorgenti per NotebookLM (generata)
+_notebooklm/

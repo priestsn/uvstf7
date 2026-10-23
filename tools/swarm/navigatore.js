@@ -33,6 +33,41 @@ function attendi(ms) {
     return new Promise((risolvi) => setTimeout(risolvi, ms));
 }
 
+/**
+ * Ammazza i Chrome lasciati indietro da una corsa morta male.
+ *
+ * Ogni bot apre un Chrome con un profilo temporaneo che si chiama
+ * "uvsf7-bot-xxxx": se il processo Node viene ucciso, quel Chrome resta vivo e
+ * tiene occupata la porta CDP. La corsa dopo non riesce ad aprire il debugger e
+ * muore a sua volta, senza dire perché. Si uccidono SOLO i Chrome con quel
+ * profilo: il browser dell'utente non viene toccato.
+ */
+function pulisciChromeOrfani() {
+    const { execFileSync } = require('child_process');
+    if (process.platform !== 'win32') {
+        try { execFileSync('pkill', ['-f', 'uvsf7-bot-'], { stdio: 'ignore' }); } catch (errore) { /* nessuno */ }
+        return 0;
+    }
+
+    // Si riconoscono dal FLAG, non dal profilo: ogni bot passa
+    // --remote-debugging-port=97xx, che il browser dell'utente non ha.
+    // execFileSync con argomenti in array evita l'inferno delle virgolette di
+    // cmd.exe (con execSync il filtro non corrispondeva mai e la pulizia
+    // "riusciva" chiudendo zero processi).
+    const script =
+        "Get-CimInstance Win32_Process -Filter \"name='chrome.exe'\" | " +
+        "Where-Object { $_.CommandLine -match 'remote-debugging-port=9[78]' } | " +
+        "ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop; $_.ProcessId } catch {} }";
+
+    try {
+        const uscita = execFileSync('powershell', ['-NoProfile', '-Command', script],
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+        return uscita.split(/\s+/).map((n) => Number(n)).filter((n) => n > 0).length;
+    } catch (errore) {
+        return 0;
+    }
+}
+
 /** GET su 127.0.0.1:<porta> e parse del JSON. */
 function chiediJson(porta, percorso) {
     return new Promise((risolvi, rifiuta) => {
@@ -341,5 +376,5 @@ async function apriNavigatore(opzioni) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { apriNavigatore, TASTI };
+    module.exports = { apriNavigatore, TASTI, pulisciChromeOrfani };
 }

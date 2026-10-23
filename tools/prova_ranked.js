@@ -14,6 +14,10 @@ const elo = require('../server/elo.js');
 const RADICE = path.resolve(__dirname, '..');
 const CARTELLA_STATO = path.join(RADICE, 'dati', 'runtime');
 const PORTA = 8111;
+
+// Anche qui i punti vengono dalla tabella del gioco, non da un numero fisso.
+const PUNTI = JSON.parse(fs.readFileSync(path.join(RADICE, 'dati', 'regole.json'), 'utf8')).punti;
+const PUNTI_INIZIALI = 500;
 const BASE = 'http://127.0.0.1:' + PORTA;
 const risultati = [];
 const attendi = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -131,8 +135,8 @@ async function main() {
         const esito = await post('/api/partita/concludi',
             { partitaId: avvio.dati.partitaId, esito: 'vittoria' }, tokenA);
         verifica('l\'ELO del vincitore sale di 16', esito.dati.elo === 1016, 'elo ' + esito.dati.elo);
-        verifica('punti ranked accreditati al vincitore', esito.dati.puntiGuadagnati === 100,
-            '+' + esito.dati.puntiGuadagnati);
+        verifica('punti ranked accreditati al vincitore', esito.dati.puntiGuadagnati === PUNTI.rankedVinta,
+            '+' + esito.dati.puntiGuadagnati + ' (tabella ' + PUNTI.rankedVinta + ')');
         verifica('la risposta riporta l\'ELO dell\'avversario',
             esito.dati.avversario && esito.dati.avversario.nick === 'RankedDue' &&
             esito.dati.avversario.elo === 984, 'avversario ' + (esito.dati.avversario && esito.dati.avversario.elo));
@@ -142,7 +146,7 @@ async function main() {
             profiloB.dati.elo === 984 && profiloB.dati.sconfitte === 1,
             'elo ' + profiloB.dati.elo + ' sconfitte ' + profiloB.dati.sconfitte);
         verifica('lo sconfitto prende comunque i punti di consolazione',
-            profiloB.dati.punti === 525, 'punti ' + profiloB.dati.punti);
+            profiloB.dati.punti === PUNTI_INIZIALI + PUNTI.rankedPersa, 'punti ' + profiloB.dati.punti);
 
         const doppio = await post('/api/partita/concludi',
             { partitaId: avvio.dati.partitaId, esito: 'vittoria' }, tokenA);

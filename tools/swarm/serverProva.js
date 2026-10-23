@@ -31,11 +31,17 @@ function risponde(porta) {
  * Cancella lo stato del gioco (come i file di prova) e avvia il server.
  * Ritorna {processo, url, porta}.
  */
-async function avviaServerDiProva(porta) {
+async function avviaServerDiProva(porta, opzioni) {
     const numeroPorta = Number(porta || 8300);
+    const scelte = Object.assign({ conserva: false }, opzioni || {});
 
-    for (const file of ['giocatori.json', 'partite.json', 'partite.jsonl', 'coda.json']) {
-        fs.rmSync(path.join(CARTELLA_STATO, file), { force: true });
+    // Con `conserva` gli account non si cancellano: i giocatori della modalità
+    // --vite devono mantenere punti, amici e skin fra una corsa e l'altra,
+    // altrimenti ogni corsa ricomincia da 500 punti e non compra mai niente.
+    if (!scelte.conserva) {
+        for (const file of ['giocatori.json', 'partite.json', 'partite.jsonl', 'coda.json']) {
+            fs.rmSync(path.join(CARTELLA_STATO, file), { force: true });
+        }
     }
 
     const processo = spawn(process.execPath, ['server/server.js'], {

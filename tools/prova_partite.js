@@ -18,6 +18,12 @@ const BASE = 'http://127.0.0.1:' + PORTA;
 const risultati = [];
 const attendi = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// I punti attesi NON si scrivono a mano: si leggono dalla tabella che il gioco
+// pubblica (dati/regole.json). Così se l'economia cambia, il test continua a
+// controllare il contratto invece di rompersi su un numero vecchio.
+const PUNTI = JSON.parse(fs.readFileSync(path.join(RADICE, 'dati', 'regole.json'), 'utf8')).punti;
+const PUNTI_INIZIALI = 500;
+
 function verifica(nome, condizione, dettaglio) {
     risultati.push(!!condizione);
     console.log((condizione ? 'OK       ' : 'FALLITO  ') + nome.padEnd(52) + (dettaglio || ''));
@@ -95,9 +101,10 @@ async function main() {
 
         const vinta = await post('/api/partita/concludi',
             { partitaId: avvio.dati.partitaId, esito: 'vittoria' }, token);
-        verifica('vittoria accreditata', vinta.stato === 200 && vinta.dati.puntiGuadagnati === 100,
-            'punti +' + (vinta.dati && vinta.dati.puntiGuadagnati));
-        verifica('punti totali aggiornati', vinta.dati.punti === 600, 'punti ' + vinta.dati.punti);
+        verifica('vittoria accreditata', vinta.stato === 200 && vinta.dati.puntiGuadagnati === PUNTI.onlineVinta,
+            'punti +' + (vinta.dati && vinta.dati.puntiGuadagnati) + ' (tabella ' + PUNTI.onlineVinta + ')');
+        verifica('punti totali aggiornati', vinta.dati.punti === PUNTI_INIZIALI + PUNTI.onlineVinta,
+            'punti ' + vinta.dati.punti);
         verifica('la partita risulta contata', vinta.dati.contata === true,
             'partite oggi ' + vinta.dati.partiteOggi + '/' + vinta.dati.limiteGiornaliero);
 
@@ -109,11 +116,14 @@ async function main() {
         const sconfitta = await post('/api/partita/concludi',
             { partitaId: persa.dati.partitaId, esito: 'sconfitta' }, token);
         verifica('sconfitta accredita meno della vittoria',
-            sconfitta.stato === 200 && sconfitta.dati.puntiGuadagnati === 25, 'punti +' +
+            sconfitta.stato === 200 && sconfitta.dati.puntiGuadagnati === PUNTI.onlinePersa &&
+            sconfitta.dati.puntiGuadagnati < PUNTI.onlineVinta, 'punti +' +
             (sconfitta.dati && sconfitta.dati.puntiGuadagnati));
 
         const profilo = await get('/api/profilo', token);
-        verifica('i punti si vedono nel profilo', profilo.dati.punti === 625, 'punti ' + profilo.dati.punti);
+        verifica('i punti si vedono nel profilo',
+            profilo.dati.punti === PUNTI_INIZIALI + PUNTI.onlineVinta + PUNTI.onlinePersa,
+            'punti ' + profilo.dati.punti);
         verifica('vittorie e sconfitte aggiornate',
             profilo.dati.vittorie === 1 && profilo.dati.sconfitte === 1,
             'V ' + profilo.dati.vittorie + ' S ' + profilo.dati.sconfitte);

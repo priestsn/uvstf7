@@ -361,6 +361,19 @@ async function accediConAccountNouvo(nav, url, numero) {
     return { nick: nick, dentro: dentro };
 }
 
+/**
+ * Entra con un account GIA' preparato (token ottenuto via API).
+ * Serve ai giocatori veri e propri: l'account si crea prima, fuori dal browser,
+ * così punti e amicizie restano e non si riparte da zero a ogni sessione.
+ */
+async function entraConToken(nav, url, account) {
+    await nav.valuta("localStorage.setItem('uvsf7-token'," + JSON.stringify(account.token) + ")");
+    await nav.valuta('location.reload()');
+    await attendi(4000);
+    const dentro = await nav.valuta('(typeof statoAccount !== "undefined" && statoAccount) ? !!statoAccount.dentro : false');
+    return { nick: account.nick, dentro: dentro };
+}
+
 const SCHERMATE = [
     { nome: 'negozio', voce: 'NEGOZIO', stato: 'negozio', attesa: 2500 },
     { nome: 'account', voce: 'ACCOUNT', stato: 'account', attesa: 2000 },
@@ -551,7 +564,7 @@ async function accanto(nav) {
 async function corriOnline(opzioni) {
     const scelte = Object.assign({
         url: '', minuti: 4, portaCdpBase: 9700, cartella: process.cwd(),
-        scriviEvento: function () {}, giocatori: 2
+        scriviEvento: function () {}, giocatori: 2, accountPronti: null
     }, opzioni || {});
 
     const avvio = Date.now();
@@ -565,13 +578,72 @@ async function corriOnline(opzioni) {
         let nav = null;
         try {
             nav = await apriNavigatore({ porta: scelte.portaCdpBase + numero, url: scelte.url, attesaCaricamentoMs: 4000 });
-            const accesso = await accediConAccountNouvo(nav, scelte.url, numero);
+            const pronto = scelte.accountPronti && scelte.accountPronti[numero];
+            const accesso = pronto
+                ? await entraConToken(nav, scelte.url, pronto)
+                : await accediConAccountNouvo(nav, scelte.url, numero);
+
+            // Comprare una skin e non poterla mettere è metà della prova: qui il
+            // giocatore la indossa davvero, con la funzione del gioco.
+            if (pronto && pronto.indossa && accesso.dentro) {
+                try {
+                    // Non basta CHIAMARE indossaSkin: si rilegge cosa il gioco dice
+                    // che è addosso. Una funzione che non restituisce niente
+                    // sembrerebbe riuscita anche se non avesse fatto nulla.
+                    await nav.valuta(
+                        'typeof indossaSkin === "function" ? indossaSkin(' +
+                        JSON.stringify(pronto.indossa.personaggio) + ',' + JSON.stringify(pronto.indossa.skin) + ') : "assente"');
+                    const addosso = await nav.valuta(
+                        'typeof skinIndossata === "function" ? skinIndossata(' +
+                        JSON.stringify(pronto.indossa.personaggio) + ') : "assente"');
+                    const voluta = pronto.indossa.skin;
+                    const corretta = String(addosso).toLowerCase() === String(voluta).toLowerCase();
+
+                    scelte.scriviEvento({
+                        tipo: corretta ? 'nota' : 'anomalia',
+                        bot: numero, partita: 0,
+                        firma: corretta ? 'skin-indossata' : 'skin-non-addosso',
+                        gravita: corretta ? 'nessuna' : 'fastidiosa',
+                        messaggio: 'skin «' + voluta + '» su ' + pronto.indossa.personaggio +
+                            ': il gioco dice che addosso c\'è «' + addosso + '»',
+                        contesto: null, decimi: secondo()
+                    });
+                } catch (errore) {
+                    scelte.scriviEvento({
+                        tipo: 'anomalia', bot: numero, partita: 0, firma: 'skin-non-indossabile',
+                        gravita: 'fastidiosa',
+                        messaggio: 'Il giocatore possiede «' + pronto.indossa.skin + '» ma non riesce a indossarla: ' + errore.message,
+                        contesto: null, decimi: secondo()
+                    });
+                }
+            }
             await nav.valuta(SORGENTE_SONDA);
 
             scelte.scriviEvento({
                 tipo: 'nota', bot: numero, partita: 0, firma: 'account-di-prova',
                 gravita: 'nessuna', messaggio: 'account ' + accesso.nick + ' in coda', contesto: null, decimi: secondo()
             });
+
+            // Il gioco può non avere ancora definito le funzioni della coda:
+            // una volta su 182 partite la pagina ha risposto
+            // "Uncaught ReferenceError: apriCodaRanked is not defined". Non è un
+            // difetto per un giocatore (nessuno clicca prima del caricamento),
+            // ma la corsa non deve perderci una partita.
+            let codaPronta = false;
+            for (let giro = 0; giro < 40 && !codaPronta; giro++) {
+                codaPronta = !!(await nav.valuta(
+                    '(typeof apriCodaRanked === "function" && typeof cercaPartitaRanked === "function")'));
+                if (!codaPronta) await attendi(250);
+            }
+            if (!codaPronta) {
+                scelte.scriviEvento({
+                    tipo: 'anomalia', bot: numero, partita: 0, firma: 'funzioni-coda-assenti',
+                    gravita: 'grave',
+                    messaggio: 'Dopo 10 s di attesa la pagina non ha ancora definito apriCodaRanked/cercaPartitaRanked',
+                    contesto: null, decimi: secondo()
+                });
+                return { giudizi: 0, partite: 0 };
+            }
 
             await nav.valuta('apriCodaRanked(); "ok"');
             await attendi(500);
@@ -583,6 +655,11 @@ async function corriOnline(opzioni) {
             const scadenza = Date.now() + 60000;
             let inPartita = false;
             let confermato = false;
+            // In online P1 è SEMPRE il padrone della stanza e P2 l'ospite: l'ospite
+            // disegna lo stato ricevuto, quindi nella sua pagina il "p1" è
+            // l'avversario. Senza questa informazione, a fine partita entrambi
+            // leggono "p1 vivo, p2 morto" e si dichiarano vincitori.
+            let sonoOspite = false;
 
             while (Date.now() < scadenza) {
                 const stato = await nav.valuta('statoCorrente');
@@ -590,6 +667,7 @@ async function corriOnline(opzioni) {
                 if (stato === 'selezione' && !confermato) {
                     const ospite = await nav.valuta(
                         '(typeof onlineStato !== "undefined" && onlineStato) ? !!onlineStato.ospite : false');
+                    sonoOspite = !!ospite;
                     await nav.valuta('confermaScelta(' + (ospite ? 2 : 1) + '); "confermata"');
                     confermato = true;
                     scelte.scriviEvento({
@@ -670,6 +748,31 @@ async function corriOnline(opzioni) {
                 await attendi(60);
             }
 
+            // --- esito della partita ---
+            // Chi ha la vita a zero ha perso. Lo leggo dalla sonda invece di
+            // cercarlo nel codice del gioco: se un giorno cambia il modo in cui
+            // il gioco decide il vincitore, questa misura continua a valere.
+            let esitoPartita = null;
+            try {
+                const finale = await nav.valuta('_swarm.campiona()');
+                if (finale && finale.p1 && finale.p2) {
+                    // Il mio lottatore è p1 se sono il padrone, p2 se sono l'ospite.
+                    const mio = sonoOspite ? finale.p2 : finale.p1;
+                    const suo = sonoOspite ? finale.p1 : finale.p2;
+                    const vintaDaMe = mio.vita > 0 && suo.vita <= 0;
+                    const persa = suo.vita > 0 && mio.vita <= 0;
+                    esitoPartita = {
+                        vinta: vintaDaMe,
+                        persa: persa,
+                        pareggio: !vintaDaMe && !persa,
+                        vitaMia: mio.vita,
+                        vitaSua: suo.vita,
+                        mioVerdellinese: mio.personaggio || null,
+                        suoVerdellinese: suo.personaggio || null
+                    };
+                }
+            } catch (errore) { /* niente */ }
+
             // --- fine partita: la prova della "uscita libera" ---
             // Regola voluta dall'autore: rivincita e cambio verdellinese
             // richiedono l'accordo dei due, mentre USCIRE è libero. Qui il bot 1
@@ -720,7 +823,7 @@ async function corriOnline(opzioni) {
                 });
             }
 
-            return { giudizi: 0, partite: 1 };
+            return { giudizi: 0, partite: 1, esito: esitoPartita, nick: accesso.nick };
         } finally {
             if (nav) nav.chiudi();
         }

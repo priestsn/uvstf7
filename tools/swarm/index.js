@@ -20,8 +20,10 @@ const path = require('path');
 
 const { avviaServerDiProva, fermaServerDiProva } = require('./serverProva.js');
 const { corriSciame, corriGiro, corriOnline } = require('./corridore.js');
+const { pulisciChromeOrfani } = require('./navigatore.js');
 const { costruisciRapporto } = require('./rapporto.js');
 const { rivediEventi } = require('./revisore.js');
+const { corriVite } = require('./vita.js');
 
 const RADICE = path.join(__dirname, '..', '..');
 
@@ -29,7 +31,7 @@ function argomenti(elenco) {
     const scelte = {
         bot: 3, minuti: 5, partite: 3, jev: false, jevOgni: 12,
         maxChiamate: 300, porta: 8300, uscita: path.join(RADICE, 'bug_reports'),
-        giro: false, ripetizioni: 2, account: false, online: false
+        giro: false, ripetizioni: 2, account: false, online: false, vite: false
     };
 
     for (let indice = 0; indice < elenco.length; indice++) {
@@ -47,6 +49,7 @@ function argomenti(elenco) {
         else if (voce === '--ripetizioni') scelte.ripetizioni = Number(prossimo());
         else if (voce === '--account') scelte.account = true;
         else if (voce === '--online') scelte.online = true;
+        else if (voce === '--vite') scelte.vite = true;
         else if (voce === '--notte') scelte.notte = true;
         else if (voce === '--fino') scelte.fino = prossimo();
         else if (voce === '--ciclo') scelte.ciclo = Number(prossimo());
@@ -88,6 +91,11 @@ async function main() {
         return;
     }
 
+    // Un Chrome rimasto appeso da una corsa precedente tiene occupata la porta
+    // del debugger: la corsa nuova morirebbe senza spiegazioni. Si pulisce prima.
+    const orfani = pulisciChromeOrfani();
+    if (orfani) console.log('Chiusi ' + orfani + ' Chrome rimasti appesi da una corsa precedente.');
+
     const cartella = path.join(scelte.uscita, 'swarm-' + marcaTempo());
     fs.mkdirSync(cartella, { recursive: true });
     const percorsoEventi = path.join(cartella, 'eventi.jsonl');
@@ -115,7 +123,19 @@ async function main() {
         }
     }
 
-    console.log(scelte.notte
+    // La console finisce anche in un file dentro la cartella della corsa: se il
+    // terminale perde l'output (succede), il resoconto resta.
+    const consoleOriginale = console.log;
+    console.log = function () {
+        const riga = Array.prototype.slice.call(arguments).join(' ');
+        consoleOriginale.apply(console, arguments);
+        try { fs.appendFileSync(path.join(cartella, 'console.log'), riga + '\n', 'utf8'); } catch (e) { /* niente */ }
+    };
+
+    console.log(scelte.vite
+        ? 'Giocatori: ' + scelte.bot + ' persone finte che si iscrivono, si aggiungono agli amici, ' +
+          'comprano e giocano ranked fra loro'
+        : scelte.notte
         ? 'Notte: ' + scelte.bot + ' bot a ciclo, ' + scelte.ciclo + ' minuti per ciclo, fino alle ' + scelte.fino
         : scelte.online
         ? 'Online: 2 bot in coda ranked per ' + scelte.minuti + ' minuti'
@@ -126,11 +146,68 @@ async function main() {
     console.log('Cartella: ' + cartella);
     console.log('');
 
-    const server = await avviaServerDiProva(scelte.porta);
+    const server = await avviaServerDiProva(scelte.porta, { conserva: !!scelte.vite });
     let esiti = [];
 
     try {
-        if (scelte.notte) {
+        if (scelte.vite) {
+            // Giocatori veri e propri: account, amicizie, acquisti, ranked fra loro
+            // e, alla fine, quello che pretendono.
+            const unCiclo = (minutiCiclo) => corriVite({
+                url: server.url,
+                bot: scelte.bot,
+                partite: scelte.partite,
+                minuti: minutiCiclo,
+                portaCdpBase: 9700,
+                cartella: cartella,
+                cartellaRichieste: scelte.uscita,
+                scriviEvento: scriviEvento
+            });
+
+            const riporta = (vita, numeroCiclo) => {
+                console.log('');
+                console.log((numeroCiclo ? 'Ciclo ' + numeroCiclo + ' — ' : '') +
+                    'Giocatori: ' + vita.giocatori + ' · partite ranked: ' + (vita.partite || 0) +
+                    ' · richieste nuove: ' + (vita.richieste || 0) +
+                    ' · in archivio: ' + (vita.richiesteTotali || 0) +
+                    ' · gruppi: ' + (vita.gruppi || 0));
+                for (const chi of (vita.riassuntoGiocatori || [])) {
+                    console.log('  ' + chi.nick + ' (' + chi.carattere + '): ' +
+                        chi.vinte + ' vinte, ' + chi.perse + ' perse, amici ' + chi.amici +
+                        ', punti ' + chi.punti);
+                }
+            };
+
+            let partiteTotali = 0;
+            if (scelte.notte) {
+                // I giocatori si iscrivono una volta e restano: ogni ciclo riprende
+                // gli stessi account, quindi punti, amici e skin si accumulano.
+                const [oreFine, minutiFine] = (scelte.fino || '07:00').split(':').map(Number);
+                const fine = new Date();
+                fine.setHours(oreFine, minutiFine, 0, 0);
+                if (fine.getTime() <= Date.now()) fine.setDate(fine.getDate() + 1);
+
+                let ciclo = 0;
+                while (Date.now() < fine.getTime()) {
+                    ciclo += 1;
+                    const minutiCiclo = Math.min(scelte.ciclo || 8,
+                        Math.max(1, Math.floor((fine.getTime() - Date.now()) / 60000)));
+                    console.log('\n--- ciclo ' + ciclo + ' (' + new Date().toLocaleTimeString('it-IT') +
+                        ', ' + minutiCiclo + ' minuti, ' + scelte.bot + ' giocatori) ---');
+                    const vita = await unCiclo(minutiCiclo);
+                    partiteTotali += vita.partite || 0;
+                    riporta(vita, ciclo);
+                    await new Promise((r) => setTimeout(r, 5000));
+                }
+            } else {
+                const vita = await unCiclo(scelte.minuti);
+                partiteTotali = vita.partite || 0;
+                riporta(vita, 0);
+            }
+
+            esiti = [{ partite: partiteTotali }];
+            console.log('Da decidere: ' + path.join(scelte.uscita, 'RICHIESTE.md'));
+        } else if (scelte.notte) {
             // Corse a cicli fino all'ora indicata: la macchina non regge venti
             // browser insieme, quindi si fanno girare a ondate. Contano le
             // partite totali e le misure di godibilità, non il picco di bot.

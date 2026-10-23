@@ -8,12 +8,12 @@
     "durataSessioneOre": 168
   },
   "punti": {
-    "rankedVinta": 100,
-    "rankedPersa": 25,
-    "rankedPari": 50,
-    "onlineVinta": 100,
-    "onlinePersa": 25,
-    "amichevoleVinta": 20,
+    "rankedVinta": 150,
+    "rankedPersa": 60,
+    "rankedPari": 100,
+    "onlineVinta": 150,
+    "onlinePersa": 60,
+    "amichevoleVinta": 30,
     "torneoPartecipazione": 100,
     "torneoVittoriaScontro": 150,
     "torneoVincitore": 1000

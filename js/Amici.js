@@ -100,6 +100,8 @@ function disegnaAmici(dati, messaggio, tipo) {
     } else {
         for (const amico of dati.amici) {
             bloccoAmici.appendChild(rigaAmico(amico.nick, [
+                { testo: 'SFIDA', azione: () => sfidaAmico(amico.nick) },
+                { testo: 'ENTRA', secondario: true, azione: () => entraNellaStanzaDi(amico.nick) },
                 { testo: 'RIMUOVI', secondario: true, azione: () => rimuoviAmico(amico.nick) }
             ]));
         }
@@ -127,6 +129,27 @@ function disegnaAmici(dati, messaggio, tipo) {
 
     // Il campo di ricerca si riprende il fuoco dopo un ridisegno
     if (testoRicerca) campo.focus();
+}
+
+/**
+ * Sfida un amico: apre una stanza e mostra il codice da mandargli.
+ *
+ * Non c'è niente di nuovo da costruire: la stanza con codice di 4 caratteri
+ * esiste già in VS ONLINE (js/Online.js). Mancava solo il punto d'ingresso
+ * dall'elenco amici, ed era la cosa più richiesta dai giocatori.
+ */
+function sfidaAmico(nick) {
+    messaggioAmici('Apro una stanza per ' + nick + ': mandagli il codice che compare in alto.', 'ok');
+    if (typeof chiudiPannelloOnline === 'function') chiudiPannelloOnline();
+    if (typeof apriMenu === 'function') apriMenu('online');
+    if (typeof creaStanzaOnline === 'function') creaStanzaOnline();
+}
+
+/** Entra nella stanza che un amico ha aperto: apre il campo per il codice. */
+function entraNellaStanzaDi(nick) {
+    messaggioAmici('Chiedi a ' + nick + ' il codice della stanza e scrivilo qui.', 'ok');
+    if (typeof apriMenu === 'function') apriMenu('online');
+    if (typeof apriIngressoOnline === 'function') apriIngressoOnline();
 }
 
 /** Una riga con nickname e pulsanti. */

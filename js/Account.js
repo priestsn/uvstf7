@@ -12,6 +12,10 @@ const statoAccount = {
     nick: null,
     punti: 0,
     elo: 1000,
+    // Le skin comprate vivono qui: senza questo campo il client non sapeva di
+    // possederle dopo un ricaricamento e non riusciva a indossarle, mentre il
+    // server le aveva già registrate.
+    skins: [],
     lega: 'Bronzo',
     legaColore: '#b07a4a',
     legaProssima: 'Argento',
@@ -265,6 +269,7 @@ async function esciAccount() {
     statoAccount.punti = 0;
     statoAccount.elo = 1000;
     statoAccount.lottatori = [];
+    statoAccount.skins = [];
     disegnaAccount();
     messaggioAccount('Sei uscito dal tuo account.', 'ok');
     aggiornaSchedaMenu();
@@ -291,6 +296,7 @@ function applicaProfilo(profilo) {
     statoAccount.punti = profilo.punti;
     statoAccount.elo = profilo.elo;
     statoAccount.lottatori = profilo.personaggi || [];
+    statoAccount.skins = profilo.skins || [];
     statoAccount.partiteGiocate = profilo.partiteGiocate || 0;
     statoAccount.vittorie = profilo.vittorie || 0;
     statoAccount.sconfitte = profilo.sconfitte || 0;
