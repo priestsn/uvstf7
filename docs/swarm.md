@@ -289,6 +289,22 @@ in cima, le funzionalità in fondo: si legge dall'alto e si decide.
 | acquisto sempre a **404 "Lottatore non presente nel negozio"** | l'API legge `corpo.chiave` (o `personaggio` per i client vecchi): mandavo `{voce: ...}`. La chiave era giusta, il campo no. `diagnosi_acquisto.js` distingue i due casi: **402 = chiave giusta, punti insufficienti**, **404 = chiave sbagliata** |
 | falsi allarmi `richiesta-amicizia-fallita` a ogni ciclo | chiedere l'amicizia a chi è già amico dà **409**, che non è un difetto. La ricerca amici restituisce già `relazione` (`amico`, `richiestaInviata`, `richiestaRicevuta`): ora si guarda quella prima di chiamare |
 
+## Se il browser muore, la corsa non deve morire con lui
+
+`invia()` in `tools/swarm/navigatore.js` aspettava la risposta del browser senza
+tetto di tempo: se Chrome spariva — per esempio perché qualcuno chiudeva i
+processi per fare pulizia — la promessa non si risolveva **mai** e la corsa
+restava ferma per ore senza scrivere una riga nel registro. Misurato: quattro
+ore di silenzio, con il processo ancora vivo e il ciclo fermo al secondo.
+
+Adesso ogni comando ha un tetto di 15 secondi (`ATTESA_COMANDO_MS`) e la
+chiusura del socket rifiuta tutte le attese in corso. La prova è
+`node tools/prova_swarm_timeout.js`: apre un browser vero, lo chiude e controlla
+che il comando successivo fallisca subito.
+
+Regola generale: **ogni attesa verso un processo esterno deve avere un tetto**.
+Un `await` senza scadenza non è un'attesa, è un blocco potenziale.
+
 ## Verifiche di base: errori, invarianti, persistenza
 
 Un giocatore dà per scontate tre cose che nessuno provava. Stanno in

@@ -10,6 +10,9 @@
 
 const http = require('http');
 const { spawn } = require('child_process');
+
+// Quanto si aspetta una risposta del browser prima di dichiarare che è morto.
+const ATTESA_COMANDO_MS = 15000;
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -142,6 +145,15 @@ async function apriNavigatore(opzioni) {
     let contatore = 0;
     const attese = new Map();
 
+    // Se la connessione cade, le richieste in volo non riceveranno mai risposta:
+    // vanno rifiutate subito, altrimenti il chiamante resta fermo.
+    socket.onclose = () => {
+        for (const [id, risolvi] of attese) {
+            attese.delete(id);
+            risolvi({ erroreChiusura: true });
+        }
+    };
+
     socket.onmessage = (evento) => {
         let messaggio = null;
         try { messaggio = JSON.parse(evento.data); } catch (errore) { return; }
@@ -152,12 +164,35 @@ async function apriNavigatore(opzioni) {
         }
     };
 
-    /** Invia un comando CDP e aspetta la risposta con lo stesso id. */
+    /**
+     * Invia un comando CDP e aspetta la risposta con lo stesso id.
+     *
+     * Con il tetto di tempo: se il browser muore la risposta non arriva mai e
+     * la promessa resterebbe appesa per sempre. È successo davvero — una
+     * pulizia dei Chrome ha ucciso i browser di una corsa e lo sciame è rimasto
+     * fermo quattro ore senza scrivere niente. Meglio un errore chiaro.
+     */
     function invia(metodo, parametri) {
         const id = ++contatore;
-        return new Promise((risolvi) => {
-            attese.set(id, risolvi);
-            socket.send(JSON.stringify({ id: id, method: metodo, params: parametri || {} }));
+        return new Promise((risolvi, rifiuta) => {
+            const scadenza = setTimeout(() => {
+                attese.delete(id);
+                rifiuta(new Error('nessuna risposta dal browser per ' + metodo +
+                    ' entro ' + Math.round(ATTESA_COMANDO_MS / 1000) + ' secondi'));
+            }, ATTESA_COMANDO_MS);
+
+            attese.set(id, (messaggio) => {
+                clearTimeout(scadenza);
+                risolvi(messaggio);
+            });
+
+            try {
+                socket.send(JSON.stringify({ id: id, method: metodo, params: parametri || {} }));
+            } catch (errore) {
+                clearTimeout(scadenza);
+                attese.delete(id);
+                rifiuta(errore);
+            }
         });
     }
 
@@ -169,6 +204,9 @@ async function apriNavigatore(opzioni) {
             awaitPromise: true,
             userGesture: true
         });
+        if (risposta.erroreChiusura) {
+            throw new Error('il browser si è chiuso: comando perso');
+        }
         if (risposta.result && risposta.result.exceptionDetails) {
             const dettaglio = risposta.result.exceptionDetails;
             throw new Error('eccezione nella pagina: ' + (dettaglio.text || '') + ' ' +
