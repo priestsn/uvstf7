@@ -79,43 +79,16 @@ async function prepara(base, cartella, numero) {
  * è così che nasce un'amicizia, e serve a provare entrambe le rotte.
  */
 async function tesseAmicizie(base, giocatori, scriviEvento) {
+    // Con due giocatori basta un legame; con sei serve una rete: ognuno chiede
+    // l'amicizia ai due che ha accanto, così nascono catene e non coppie isolate.
     for (let indice = 0; indice < giocatori.length; indice++) {
         const chi = giocatori[indice];
-        const altro = giocatori[(indice + 1) % giocatori.length];
-        if (chi === altro) continue;
+        const quanti = giocatori.length > 2 ? 2 : 1;
 
-        try {
-            const trovati = await giocatore.cercaGiocatore(base, chi.token, altro.nick);
-            if (!trovati || !trovati.length) {
-                scriviEvento({
-                    tipo: 'anomalia', bot: chi.numero, partita: 0, firma: 'amico-non-trovato',
-                    gravita: 'fastidiosa',
-                    messaggio: 'La ricerca amici non trova «' + altro.nick + '», che esiste ed è iscritto',
-                    contesto: null, decimi: 0
-                });
-                continue;
-            }
-
-            // La ricerca DICE già che relazione c'è: chiedere l'amicizia a chi è
-            // già amico produce un 409 che non è un difetto. Prima lo trattavo
-            // come tale e la corsa notturna si riempiva di falsi allarmi.
-            const relazione = (trovati.find((voce) => voce.nick === altro.nick) || {}).relazione || 'nessuna';
-            if (relazione === 'amico' || relazione === 'richiestaInviata') continue;
-            if (relazione === 'richiestaRicevuta') {
-                await giocatore.accettaAmicizia(base, chi.token, altro.nick);
-                continue;
-            }
-
-            await giocatore.chiediAmicizia(base, chi.token, altro.nick);
-        } catch (errore) {
-            // 409 = già amici, 404 = sparito: solo il secondo è un difetto
-            if (errore.stato === 409) continue;
-            scriviEvento({
-                tipo: 'anomalia', bot: chi.numero, partita: 0, firma: 'richiesta-amicizia-fallita',
-                gravita: 'fastidiosa',
-                messaggio: 'Richiesta di amicizia verso ' + altro.nick + ' non riuscita: ' + errore.message,
-                contesto: null, decimi: 0
-            });
+        for (let passo = 1; passo <= quanti; passo++) {
+            const altro = giocatori[(indice + passo) % giocatori.length];
+            if (!altro || altro === chi) continue;
+            await chiediUnaAmicizia(base, chi, altro, scriviEvento);
         }
     }
 
@@ -127,7 +100,48 @@ async function tesseAmicizie(base, giocatori, scriviEvento) {
         }
     }
 
-    // conteggio finale
+    await contaAmici(base, giocatori, scriviEvento);
+}
+
+/** Un singolo tentativo di amicizia, con la relazione già letta dalla ricerca. */
+async function chiediUnaAmicizia(base, chi, altro, scriviEvento) {
+    try {
+        const trovati = await giocatore.cercaGiocatore(base, chi.token, altro.nick);
+            if (!trovati || !trovati.length) {
+                scriviEvento({
+                    tipo: 'anomalia', bot: chi.numero, partita: 0, firma: 'amico-non-trovato',
+                    gravita: 'fastidiosa',
+                    messaggio: 'La ricerca amici non trova «' + altro.nick + '», che esiste ed è iscritto',
+                    contesto: null, decimi: 0
+                });
+                return;
+            }
+
+            // La ricerca DICE già che relazione c'è: chiedere l'amicizia a chi è
+            // già amico produce un 409 che non è un difetto. Prima lo trattavo
+            // come tale e la corsa notturna si riempiva di falsi allarmi.
+            const relazione = (trovati.find((voce) => voce.nick === altro.nick) || {}).relazione || 'nessuna';
+        if (relazione === 'amico' || relazione === 'richiestaInviata') return;
+        if (relazione === 'richiestaRicevuta') {
+            await giocatore.accettaAmicizia(base, chi.token, altro.nick);
+            return;
+        }
+
+        await giocatore.chiediAmicizia(base, chi.token, altro.nick);
+    } catch (errore) {
+        // 409 = già amici, 404 = sparito: solo il secondo è un difetto
+        if (errore.stato === 409) return;
+        scriviEvento({
+            tipo: 'anomalia', bot: chi.numero, partita: 0, firma: 'richiesta-amicizia-fallita',
+            gravita: 'fastidiosa',
+            messaggio: 'Richiesta di amicizia verso ' + altro.nick + ' non riuscita: ' + errore.message,
+            contesto: null, decimi: 0
+        });
+    }
+}
+
+/** Quanti amici ha ognuno alla fine del giro. */
+async function contaAmici(base, giocatori, scriviEvento) {
     for (const chi of giocatori) {
         try {
             const elenco = await giocatore.elencoAmici(base, chi.token);

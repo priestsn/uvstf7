@@ -74,8 +74,6 @@ async function chiudiPartitaPunti(esito) {
 
         if (risultato.puntiGuadagnati > 0) {
             mostraAvviso('+' + risultato.puntiGuadagnati + ' PUNTI', '#7dff7d');
-        } else if (!risultato.contata) {
-            mostraAvviso('PUNTI DI OGGI ESAURITI: MASSIMO ' + risultato.limiteGiornaliero + ' PARTITE AL GIORNO', '#e0a020');
         }
         if (daBot && risultato.elo !== undefined) {
             statoAccount.elo = risultato.elo;

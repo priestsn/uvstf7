@@ -208,7 +208,7 @@ async function gestisciApi(richiesta, risposta) {
                 puntiGuadagnati: esito.puntiGuadagnati,
                 contata: esito.contata,
                 partiteOggi: esito.partiteOggi,
-                limiteGiornaliero: esito.limiteGiornaliero,
+                giaRegistrata: !!esito.giaRegistrata,
                 elo: esito.elo,
                 eloGuadagnato: esito.eloGuadagnato,
                 lega: esito.lega,

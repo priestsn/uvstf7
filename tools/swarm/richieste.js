@@ -120,6 +120,23 @@ function dataBreve(iso) {
  */
 function costruisciTriage(elenco, extra) {
     const opzioni = extra || {};
+
+    // L'archivio è cumulativo: un difetto sistemato resta nell'elenco per sempre
+    // e continuerebbe a sembrare urgente. Chi non si vede più da un pezzo viene
+    // marcato, così non si insegue un problema già risolto.
+    let ultimoInAssoluto = '';
+    for (const gruppo of elenco) {
+        if (gruppo.ultimaVolta > ultimoInAssoluto) ultimoInAssoluto = gruppo.ultimaVolta;
+    }
+    const perGruppo = new Map();
+    for (const gruppo of elenco) {
+        const distanzaGiorni = ultimoInAssoluto && gruppo.ultimaVolta
+            ? (new Date(ultimoInAssoluto) - new Date(gruppo.ultimaVolta)) / 86400000
+            : 0;
+        // Due ore: dentro una corsa i giri sono frequenti, quindi una cosa non
+        // vista da due ore non sta più succedendo.
+        perGruppo.set(gruppo.chiave, distanzaGiorni >= (2 / 24));
+    }
     const perTipo = {};
     for (const gruppo of elenco) {
         perTipo[gruppo.tipo] = perTipo[gruppo.tipo] || [];
@@ -154,7 +171,9 @@ function costruisciTriage(elenco, extra) {
             righe.push('');
             righe.push('- peso **' + voce.peso + '** · ' + voce.menzioni + ' menzioni · ' +
                 voce.caratteri.length + ' caratteri (' + voce.caratteri.join(', ') + ')');
-            righe.push('- visto da ' + voce.primaVolta.slice(0, 10) + ' a ' + voce.ultimaVolta.slice(0, 10));
+            const vecchio = perGruppo.get(voce.chiave);
+            righe.push('- visto da ' + voce.primaVolta.slice(0, 10) + ' a ' + voce.ultimaVolta.slice(0, 10) +
+                (vecchio ? ' · **non più visto negli ultimi giri: forse già risolto**' : ''));
             if (voce.fonti.length) {
                 const fonte = voce.fonti[0];
                 const pezzi = Object.keys(fonte).map((chiave) => chiave + ': ' + fonte[chiave]);

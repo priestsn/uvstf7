@@ -8,15 +8,15 @@
     "durataSessioneOre": 168
   },
   "punti": {
-    "rankedVinta": 150,
-    "rankedPersa": 60,
-    "rankedPari": 100,
-    "onlineVinta": 150,
-    "onlinePersa": 60,
-    "amichevoleVinta": 30,
-    "torneoPartecipazione": 100,
-    "torneoVittoriaScontro": 150,
-    "torneoVincitore": 1000
+    "rankedVinta": 300,
+    "rankedPersa": 120,
+    "rankedPari": 200,
+    "onlineVinta": 300,
+    "onlinePersa": 120,
+    "amichevoleVinta": 60,
+    "torneoPartecipazione": 200,
+    "torneoVittoriaScontro": 300,
+    "torneoVincitore": 2000
   },
   "elo": {
     "iniziale": 1000,
@@ -29,13 +29,25 @@
     "puntiIscrizione": 0
   },
   "admin": {
-    "nickIniziali": ["KRISTIAN"],
+    "nickIniziali": [
+      "KRISTIAN"
+    ],
     "possonoCreareTornei": true,
     "approvazioneIscrizioni": true
   },
   "paroleBloccate": [
-    "idiota", "stupido", "scemo", "cretino", "imbecille",
-    "coglione", "merda", "cazzo", "puttana", "troia", "negro", "frocio"
+    "idiota",
+    "stupido",
+    "scemo",
+    "cretino",
+    "imbecille",
+    "coglione",
+    "merda",
+    "cazzo",
+    "puttana",
+    "troia",
+    "negro",
+    "frocio"
   ],
   "tentativiAccesso": {
     "massimo": 10,

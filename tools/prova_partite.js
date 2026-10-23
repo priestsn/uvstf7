@@ -3,7 +3,7 @@
 // ==========================================
 // Il server emette un identificativo di partita e accetta un solo risultato per
 // identificativo: qui si controlla che i punti arrivino davvero, una volta sola,
-// e che il tetto giornaliero li fermi.
+// e che NON ci sia nessun tetto: giocare tanto deve continuare a pagare.
 //
 // Uso:  node tools/prova_partite.js
 
@@ -130,15 +130,22 @@ async function main() {
 
         // Tetto giornaliero: si consumano le partite rimaste e si controlla la
         // prima che supera il limite.
+        // Nessun tetto: venti partite di fila devono pagare tutte, senza sosta.
         let ultima = null;
+        let pagate = 0;
+        let premio = 0;
         for (let giro = 0; giro < 20; giro++) {
             const nuova = await post('/api/partita/avvia', { modo: 'online' }, token);
             ultima = await post('/api/partita/concludi', { partitaId: nuova.dati.partitaId, esito: 'vittoria' }, token);
-            if (ultima.dati.contata === false) break;
+            if (ultima.dati.puntiGuadagnati > 0) { pagate += 1; premio = ultima.dati.puntiGuadagnati; }
         }
-        verifica('oltre il tetto giornaliero la partita non accredita',
-            ultima.dati.contata === false && ultima.dati.puntiGuadagnati === 0,
-            'punti +' + ultima.dati.puntiGuadagnati + ' (partite oggi ' + ultima.dati.partiteOggi + ')');
+        verifica('nessun tetto: venti partite di fila pagano tutte',
+            pagate === 20 && ultima.dati.puntiGuadagnati === premio,
+            pagate + '/20 pagate, ultima +' + ultima.dati.puntiGuadagnati +
+            ' (partite oggi ' + ultima.dati.partiteOggi + ')');
+        verifica('la partita non riporta più un limite giornaliero',
+            ultima.dati.limiteGiornaliero === undefined,
+            'limiteGiornaliero: ' + ultima.dati.limiteGiornaliero);
 
         const registro = fs.readFileSync(path.join(CARTELLA_STATO, 'partite.jsonl'), 'utf8')
             .split('\n').filter((riga) => riga.trim() !== '');

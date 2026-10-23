@@ -4,8 +4,9 @@
 // Perché servono due chiamate e non una: il client non deve poter dire
 // "ho vinto, dammi 100 punti". Il server emette un identificativo di partita
 // prima dell'incontro, e accetta un solo risultato per identificativo, entro il
-// tempo massimo e dentro un tetto giornaliero. Così i punti arrivano da partite
-// vere e non si possono moltiplicare inviando risultati a raffica.
+// tempo massimo. Così i punti arrivano da partite vere e non si possono
+// moltiplicare inviando risultati a raffica. Non c'è nessun tetto giornaliero:
+// chi gioca di più guadagna di più, senza limite.
 
 const crypto = require('crypto');
 const { accoda } = require('./dati.js');
@@ -13,11 +14,28 @@ const elo = require('./elo.js');
 const leghe = require('./leghe.js');
 
 const DURATA_MASSIMA_MINUTI = 60;
-const PARTITE_CONTATE_AL_GIORNO = 15;
 
 /** Oggi, in formato AAAA-MM-GG: serve al tetto giornaliero. */
 function oggi(adesso) {
     return new Date(adesso || Date.now()).toISOString().slice(0, 10);
+}
+
+/**
+ * La partita gemella: quella che l'avversario ha aperto contro di noi e che non
+ * è ancora stata chiusa. In ranked esiste quasi sempre, perché ogni client apre
+ * la propria partita prima dell'incontro.
+ */
+function partitaGemella(stato, partita) {
+    if (!partita.avversarioId) return null;
+    let gemella = null;
+    for (const altra of Object.values(stato.partite)) {
+        if (altra.partitaId === partita.partitaId) continue;
+        if (altra.conclusa) continue;
+        if (altra.giocatore !== partita.avversarioId) continue;
+        if (altra.avversarioId !== partita.giocatore) continue;
+        if (!gemella || altra.avviata > gemella.avviata) gemella = altra;
+    }
+    return gemella;
 }
 
 /** La partita esiste ed è ancora valida? */
@@ -99,6 +117,22 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
     const stato = magazzino.leggi('partite.json', { versione: 1, partite: {} });
     if (!stato.partite) stato.partite = {};
 
+    // L'incontro è già stato registrato dall'altro lato: il giocatore ha già
+    // preso punti ed ELO. Non è un errore, è la stessa partita vista due volte,
+    // quindi si risponde con calma invece di pagare una seconda volta.
+    const richiesto = stato.partite[String((corpo && corpo.partitaId) || '')];
+    if (richiesto && richiesto.giocatore === giocatore.id && richiesto.conclusa && richiesto.chiusaDa) {
+        return {
+            ok: true,
+            giaRegistrata: true,
+            punti: giocatore.punti || 0,
+            puntiGuadagnati: 0,
+            contata: true,
+            partiteOggi: giocatore.partiteOggi || 0,
+            messaggio: 'Risultato già registrato: l\'incontro è stato chiuso dall\'avversario.'
+        };
+    }
+
     const controllo = partitaValida(stato, String((corpo && corpo.partitaId) || ''), giocatore, adesso);
     if (!controllo.ok) return controllo;
 
@@ -117,15 +151,15 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
     const avversario = partita.avversarioId ? statoGiocatori.giocatori[partita.avversarioId] : null;
     const ranked = partita.modo === 'ranked' && !!avversario;
 
-    // Tetto giornaliero: oltre le partite contate la partita resta valida ma
-    // non accredita più niente (evita di macinare punti in un pomeriggio).
+    // Nessun tetto: ogni partita conclusa paga il suo premio. Il contatore
+    // giornaliero resta solo come statistica del profilo, non come limite.
     const giorno = oggi(adesso);
     if (giocatore.giornoPartite !== giorno) {
         giocatore.giornoPartite = giorno;
         giocatore.partiteOggi = 0;
     }
-    const contata = (giocatore.partiteOggi || 0) < PARTITE_CONTATE_AL_GIORNO;
-    const puntiDati = contata ? premio : 0;
+    const contata = true;
+    const puntiDati = premio;
 
     giocatore.partiteOggi = (giocatore.partiteOggi || 0) + 1;
     if (ranked) giocatore.partiteRanked = (giocatore.partiteRanked || 0) + 1;
@@ -167,14 +201,12 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
         legaSua = protezioneSua.lega.nome;
         protetto = protezioneMia.protetto;
 
-        // Anche all'avversario i punti seguono il tetto giornaliero: nessuno
-        // deve poter gonfiare il punteggio di un amico facendosi battere.
+        // Anche l'avversario prende sempre il suo premio: nessun tetto.
         if (avversario.giornoPartite !== giorno) {
             avversario.giornoPartite = giorno;
             avversario.partiteOggi = 0;
         }
-        const contataAvversario = (avversario.partiteOggi || 0) < PARTITE_CONTATE_AL_GIORNO;
-        puntiAvversario = contataAvversario ? premioAvversario : 0;
+        puntiAvversario = premioAvversario;
         avversario.partiteOggi = (avversario.partiteOggi || 0) + 1;
         avversario.partiteRanked = (avversario.partiteRanked || 0) + 1;
         elo.aggiornaStatistiche(avversario, esitoAvversario);
@@ -202,6 +234,23 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
     partita.punti = puntiDati;
     partita.variazioneElo = variazioneElo;
 
+    // Una partita, un accredito. La gemella dell'avversario viene segnata come
+    // chiusa da questa conclusione: quando il suo client la chiuderà, non
+    // pagherà una seconda volta. Prima di questa correzione ogni incontro
+    // pagava il doppio, perché entrambi i lati concludevano.
+    const gemella = partitaGemella(stato, partita);
+    if (gemella) {
+        gemella.conclusa = true;
+        gemella.esito = esito === 'vittoria' ? 'sconfitta' : esito === 'sconfitta' ? 'vittoria' : 'pareggio';
+        gemella.quando = new Date(adesso).toISOString();
+        gemella.punti = 0;
+        gemella.variazioneElo = 0;
+        gemella.chiusaDa = giocatore.id;
+        gemella.gemellaDi = partita.partitaId;
+        gemella.nota = 'chiusa insieme alla partita dell\'avversario';
+        stato.partite[gemella.partitaId] = gemella;
+    }
+
     stato.partite[partita.partitaId] = partita;
     magazzino.scrivi('partite.json', stato);
     magazzino.scrivi('giocatori.json', statoGiocatori);
@@ -224,8 +273,7 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
         punti: giocatore.punti,
         puntiGuadagnati: puntiDati,
         contata: contata,
-        partiteOggi: giocatore.partiteOggi,
-        limiteGiornaliero: PARTITE_CONTATE_AL_GIORNO
+        partiteOggi: giocatore.partiteOggi
     };
 
     if (ranked) {
@@ -244,4 +292,4 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
     return risposta;
 }
 
-module.exports = { avviaPartita, concludiPartita, PARTITE_CONTATE_AL_GIORNO, oggi };
+module.exports = { avviaPartita, concludiPartita, oggi };
