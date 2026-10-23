@@ -303,6 +303,10 @@ function consegnaCodice(magazzino, giocatore, codice) {
     stato.codici[mio.partitaId] = { codice: pulito, quando: Date.now() };
     magazzino.scrivi('coda.json', stato);
 
+    // Il codice va anche sulla partita: è quello che lega l'incontro visto
+    // dall'host a quello visto dall'ospite, e impedisce il doppio accredito.
+    require('./partite.js').annotaCodice(magazzino, mio.partitaId, pulito);
+
     return { ok: true, messaggio: 'Codice consegnato all\'avversario.', codice: pulito };
 }
 

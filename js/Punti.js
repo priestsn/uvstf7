@@ -39,7 +39,12 @@ async function apriPartitaPunti() {
     if (typeof modalitaPartita === 'undefined' || modalitaPartita !== MODALITA.ONLINE) return;
 
     try {
-        const risposta = await api.chiama('/api/partita/avvia', { corpo: { modo: 'online' } });
+        // Il codice della stanza lega questa partita a quella dell'host: senza,
+        // il server non sa che sono lo stesso incontro e paga due volte.
+        const codiceStanza = (typeof onlineStato !== 'undefined' && onlineStato.codice)
+            ? String(onlineStato.codice).trim().toUpperCase() : null;
+
+        const risposta = await api.chiama('/api/partita/avvia', { corpo: { modo: 'online', codice: codiceStanza } });
         partitaPunti = risposta.partitaId;
     } catch (errore) {
         // Senza identificativo la partita si gioca lo stesso, solo senza punti

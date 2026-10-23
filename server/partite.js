@@ -21,21 +21,27 @@ function oggi(adesso) {
 }
 
 /**
- * La partita gemella: quella che l'avversario ha aperto contro di noi e che non
- * è ancora stata chiusa. In ranked esiste quasi sempre, perché ogni client apre
- * la propria partita prima dell'incontro.
+ * Le partite sorelle: quelle aperte per lo stesso incontro.
+ *
+ * Due strade, perché il flusso reale è asimmetrico:
+ *   - il codice della stanza, quando c'è, lega la partita dell'host (ranked, con
+ *     avversario) a quella dell'ospite (online, senza avversario);
+ *   - altrimenti la coppia di giocatori, per le partite ranked fra due client
+ *     che si indicano a vicenda.
  */
-function partitaGemella(stato, partita) {
-    if (!partita.avversarioId) return null;
-    let gemella = null;
+function partiteSorelle(stato, partita) {
+    const sorelle = [];
     for (const altra of Object.values(stato.partite)) {
         if (altra.partitaId === partita.partitaId) continue;
-        if (altra.conclusa) continue;
-        if (altra.giocatore !== partita.avversarioId) continue;
-        if (altra.avversarioId !== partita.giocatore) continue;
-        if (!gemella || altra.avviata > gemella.avviata) gemella = altra;
+
+        const stessoCodice = partita.codice && altra.codice && altra.codice === partita.codice;
+        const stessaCoppia = partita.avversarioId && altra.giocatore === partita.avversarioId &&
+            altra.avversarioId === partita.giocatore;
+        const incrociata = partita.avversarioId && altra.giocatore === partita.avversarioId;
+
+        if (stessoCodice || stessaCoppia || incrociata) sorelle.push(altra);
     }
-    return gemella;
+    return sorelle;
 }
 
 /** La partita esiste ed è ancora valida? */
@@ -95,6 +101,12 @@ function avviaPartita(magazzino, giocatore, corpo) {
         modo: modo,
         avversarioId: avversarioId,
         avversario: avversarioNick || (corpo && typeof corpo.avversario === 'string' ? corpo.avversario.slice(0, 24) : null),
+        // Il codice della stanza lega le due partite dello stesso incontro:
+        // l'host gioca ranked e indica l'avversario, l'ospite entra nella stanza
+        // e gioca una partita online senza sapere contro chi. Senza questo
+        // legame il server non può sapere che sono lo stesso incontro.
+        codice: (corpo && typeof corpo.codice === 'string' && corpo.codice.trim().length === 4)
+            ? corpo.codice.trim().toUpperCase() : null,
         avviata: adesso,
         scade: adesso + DURATA_MASSIMA_MINUTI * 60000,
         conclusa: false
@@ -172,6 +184,7 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
     let legaMia = null;
     let legaSua = null;
     let protetto = false;
+    let avversarioGiaPagato = false;
 
     if (ranked) {
         const esitoAvversario = esito === 'vittoria' ? 'sconfitta' : esito === 'sconfitta' ? 'vittoria' : 'pareggio';
@@ -201,17 +214,25 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
         legaSua = protezioneSua.lega.nome;
         protetto = protezioneMia.protetto;
 
-        // Anche l'avversario prende sempre il suo premio: nessun tetto.
+        // L'avversario viene pagato QUI una volta sola: se il suo client ha già
+        // chiuso la propria partita per lo stesso incontro, ha già preso i suoi
+        // punti e non ne riceve altri. Prima di questa correzione ognuno veniva
+        // pagato due volte (misurato: 240 punti invece di 120).
         if (avversario.giornoPartite !== giorno) {
             avversario.giornoPartite = giorno;
             avversario.partiteOggi = 0;
         }
-        puntiAvversario = premioAvversario;
+
+        const sorelleOra = partiteSorelle(stato, partita);
+        const giaPagato = sorelleOra.some((sorella) =>
+            sorella.giocatore === avversario.id && sorella.conclusa && (sorella.punti || 0) > 0);
+        puntiAvversario = giaPagato ? 0 : premioAvversario;
         avversario.partiteOggi = (avversario.partiteOggi || 0) + 1;
         avversario.partiteRanked = (avversario.partiteRanked || 0) + 1;
         elo.aggiornaStatistiche(avversario, esitoAvversario);
         avversario.punti = Math.max(0, (avversario.punti || 0) + puntiAvversario);
         eloAvversario = avversario.elo;
+        avversarioGiaPagato = giaPagato;
 
         statoGiocatori.giocatori[avversario.id] = avversario;
 
@@ -234,21 +255,22 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
     partita.punti = puntiDati;
     partita.variazioneElo = variazioneElo;
 
-    // Una partita, un accredito. La gemella dell'avversario viene segnata come
-    // chiusa da questa conclusione: quando il suo client la chiuderà, non
-    // pagherà una seconda volta. Prima di questa correzione ogni incontro
-    // pagava il doppio, perché entrambi i lati concludevano.
-    const gemella = partitaGemella(stato, partita);
-    if (gemella) {
-        gemella.conclusa = true;
-        gemella.esito = esito === 'vittoria' ? 'sconfitta' : esito === 'sconfitta' ? 'vittoria' : 'pareggio';
-        gemella.quando = new Date(adesso).toISOString();
-        gemella.punti = 0;
-        gemella.variazioneElo = 0;
-        gemella.chiusaDa = giocatore.id;
-        gemella.gemellaDi = partita.partitaId;
-        gemella.nota = 'chiusa insieme alla partita dell\'avversario';
-        stato.partite[gemella.partitaId] = gemella;
+    // Una partita, un accredito. Quando l'avversario è stato pagato qui, la sua
+    // partita per lo stesso incontro viene segnata come già chiusa: il suo
+    // client concluderà, ma non pagherà una seconda volta.
+    if (ranked && partita.avversarioId && !avversarioGiaPagato) {
+        for (const sorella of partiteSorelle(stato, partita)) {
+            if (sorella.giocatore !== partita.avversarioId) continue;
+            if (sorella.conclusa) continue;
+            sorella.conclusa = true;
+            sorella.esito = esito === 'vittoria' ? 'sconfitta' : esito === 'sconfitta' ? 'vittoria' : 'pareggio';
+            sorella.quando = new Date(adesso).toISOString();
+            sorella.punti = 0;
+            sorella.variazioneElo = 0;
+            sorella.chiusaDa = giocatore.id;
+            sorella.nota = 'incontro già registrato dall\'avversario';
+            stato.partite[sorella.partitaId] = sorella;
+        }
     }
 
     stato.partite[partita.partitaId] = partita;
@@ -292,4 +314,22 @@ function concludiPartita(magazzino, giocatore, corpo, regole) {
     return risposta;
 }
 
-module.exports = { avviaPartita, concludiPartita, oggi };
+/**
+ * Annota sulla partita il codice della stanza creata dal padrone.
+ * Senza questo, la partita dell'host (aperta dalla coda, ranked) e quella
+ * dell'ospite (aperta dal suo client, online) non si riconoscono come lo
+ * stesso incontro e il server finisce per pagare due volte.
+ */
+function annotaCodice(magazzino, partitaId, codice) {
+    const pulito = String(codice || '').trim().toUpperCase();
+    if (pulito.length !== 4) return false;
+
+    const stato = magazzino.leggi('partite.json', { versione: 1, partite: {} });
+    if (!stato.partite || !stato.partite[partitaId]) return false;
+
+    stato.partite[partitaId].codice = pulito;
+    magazzino.scrivi('partite.json', stato);
+    return true;
+}
+
+module.exports = { avviaPartita, concludiPartita, annotaCodice, oggi };
