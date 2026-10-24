@@ -103,6 +103,30 @@ function raggruppa(eventi) {
  * Costruisce il Markdown del rapporto.
  * opzioni: {bot, minuti, partite, build, dataLeggibile, immagineEsiste(nome) -> bool}
  */
+/**
+ * Quanto è durata davvero la corsa, leggendo il primo e l'ultimo evento.
+ * Torna null se gli eventi non hanno orari utilizzabili.
+ */
+function durataDagliEventi(eventi) {
+    let primo = null;
+    let ultimo = null;
+    for (const evento of eventi || []) {
+        const quando = evento && evento.quando ? Date.parse(evento.quando) : NaN;
+        if (Number.isNaN(quando)) continue;
+        if (primo === null || quando < primo) primo = quando;
+        if (ultimo === null || quando > ultimo) ultimo = quando;
+    }
+    if (primo === null || ultimo === null) return null;
+
+    const minuti = Math.round((ultimo - primo) / 60000);
+    if (minuti < 1) return 'meno di un minuto';
+    if (minuti < 60) return minuti + ' minuti';
+    const ore = Math.floor(minuti / 60);
+    const resto = minuti % 60;
+    if (resto === 0) return ore + (ore === 1 ? ' ora' : ' ore');
+    return ore + (ore === 1 ? ' ora e ' : ' ore e ') + resto + ' minuti';
+}
+
 function costruisciRapporto(eventi, opzioni) {
     const scelte = Object.assign({
         bot: 0, minuti: 0, partite: 0, build: '?',
@@ -123,9 +147,14 @@ function costruisciRapporto(eventi, opzioni) {
     const righe = [];
 
     const modo = scelte.modo || 'sciame';
+    // La durata va presa dagli eventi, non dall'opzione: una corsa lanciata con
+    // --fino 07:00 dura ore, ma l'opzione --minuti resta al valore di default e
+    // il rapporto finiva per dichiarare "5 minuti" su una corsa di otto ore.
+    const durataVera = durataDagliEventi(eventi);
+    const quanto = durataVera || (scelte.minuti + ' minuti');
     const cosaHaFatto = (modo === 'giro')
         ? 'giro delle schermate'
-        : (scelte.minuti + ' minuti, ' + scelte.partite + ' partite');
+        : (quanto + ', ' + scelte.partite + ' partite');
 
     righe.push('# ' + (modo === 'giro' ? 'Giro schermate ' : 'Swarm ') + scelte.dataLeggibile +
         ' — ' + scelte.bot + ' bot, ' + cosaHaFatto);
@@ -417,7 +446,7 @@ function sezioneGodibilita(valutazione) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
+    module.exports = { durataDagliEventi,
         costruisciRapporto, raggruppa, rigaContesto, nomeGravita, pesoGravita,
         valutaGodibilita, sezioneGodibilita, SOGLIE_GODIBILITA
     };
