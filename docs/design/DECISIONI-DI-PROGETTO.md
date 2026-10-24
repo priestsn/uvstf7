@@ -188,3 +188,40 @@ Il progetto di dettaglio sta in `.hermes/plans/2026-10-25_090000-ulti-cutscene.m
 - Le passive, le tattiche e il tasto `TATTICA` **non esistono**.
 - Le ultimate esistono con i loro effetti, senza cutscene.
 - Un precedente utilissimo per le cutscene c'è già: `js/CerimoniaFine.js`, una sequenza a fasi contate in passi, identica su ogni schermo. Le cutscene vanno costruite con lo stesso schema.
+
+---
+
+## Le cutscene: cosa è costruito (aggiornato al 25 ottobre 2026)
+
+Le nove scene ci sono e girano tutte. Struttura: `js/Cutscene.js` tiene i
+copioni come dati (sipario, gesto, colpo, ritorno — 86-94 passi ciascuna),
+`js/EffettiCutscene.js` tiene il disegno proprio di ogni verdellinese,
+`index.js` tiene la regia comune e il fermo del mondo.
+
+| Verdellinese | Scena | Effetto proprio | Stato |
+|---|---|---|---|
+| Ousmane Diouf | RADICI DEL BAOBAB | radici che escono dal suolo e artigliano | fatto |
+| Kwame Mensah | VORTICE DI VENTO | mondo inclinato di 15° + spirale di particelle | fatto |
+| Chidi Okonkwo | RUGGITO DEL LEONE | immobilità pulsante, onde concentriche, crepe | fatto |
+| Amara Diallo | DANZA FULMINEA | tre copie d'ombra che danzano e rientrano in lei | fatto |
+| Tarisai Moyo | CERCHIO ANCESTRALE | anelli dall'alto e spire velenose | fatto |
+| Zuri Nkosi | FRECCIA DELLA SAVANA | freccia che attraversa lo schermo, sigillo sul nemico | fatto |
+| Bakari Traore | PIOGGIA DI STELLE | scie dal cielo e onde di fiamma al suolo | fatto |
+| Sekou Camara | GIUDIZIO DEGLI ANTENATI | silhouette, anello che si chiude, comandi spenti | fatto |
+| Ayo Adebayo | ECLISSI ARCANA | disco che attraversa, raggio, 6 passi di nero assoluto | fatto |
+
+### Regole imparate costruendole (non rifarle sbagliate)
+
+- **Il suolo della scena deve stare sopra la barra nera.** La linea di terra del
+  gioco (720 − 40) finiva coperta dal letterbox: i lottatori galleggiavano.
+- **La rotazione del canvas vale solo per i disegni successivi.** Inclinare il
+  mondo significa ruotare il fondale *e* gli attori insieme; ruotare solo gli
+  attori non si vede, ruotare solo dopo averli disegnati non li tocca.
+- **Le linee radiali sembrano strumenti di debug.** Sette raggi bianchi che
+  partono dal centro leggono come hitbox, non come luce. Fuori.
+- **I lottatori vanno messi in posa.** Lasciati dove stavano finiscono ai bordi
+  opposti dello schermo: una scena è una composizione, non due sprite fermi.
+- **Il danno arriva alla fine della scena**, non prima. Se l'avversario muore
+  per la ultimate, la cerimonia di fine partita deve partire dopo.
+- **Lo sciame non deve scambiare il fermo per un comando perso**: la sonda
+  controlla `cutsceneAttiva` prima di segnalare `azione-persa`.

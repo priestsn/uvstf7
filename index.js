@@ -1159,19 +1159,16 @@ function disegnaCutscene() {
     const totaleFase = fase ? fase.passi : 1;
     const avanzamento = dentroFase / Math.max(1, totaleFase);
 
-    // La linea di terra della scena sta PIÙ IN ALTO di quella del gioco:
-    // il suolo vero finiva sotto la barra nera e i lottatori sembravano
-    // galleggiare nel vuoto (visto sul fotogramma, non immaginato).
+    // La linea di terra della scena sta PIÙ IN ALTO di quella del gioco: il
+    // suolo vero finiva sotto la barra nera e i lottatori galleggiavano.
     const suoloScena = Math.round(canvas.height * 0.74);
 
-    // --- regia: i due vengono MESSI IN POSA, non lasciati dove stavano.
-    // È la differenza fra una scena e due sprite fermi ai lati dello schermo.
+    // --- regia: i due vengono MESSI IN POSA, non lasciati dove stavano
     const attaccante = scena.attaccante;
     const difensore = scena.difensore;
     const posizioneAttaccante = { x: attaccante.position.x, y: attaccante.position.y };
     const posizioneDifensore = { x: difensore.position.x, y: difensore.position.y };
 
-    // durante il colpo si avvicinano: l'attaccante scatta in avanti
     const vicini = (fase.nome === 'colpo');
     const xAttaccante = canvas.width * (vicini ? 0.42 : 0.34);
     const xDifensore = canvas.width * (vicini ? 0.60 : 0.66);
@@ -1181,13 +1178,32 @@ function disegnaCutscene() {
     difensore.position.x = xDifensore;
     difensore.position.y = suoloScena - difensore.height;
 
-    // --- fondale: cielo scuro, orizzonte, suolo
-    const cielo = c.createLinearGradient(0, 0, 0, suoloScena);
+    // --- l'inclinazione della scena intera (Kwame): deve piegare ANCHE il
+    // mondo, non solo gli sprite, altrimenti l'orizzonte resta dritto e
+    // l'inclinazione non si vede (verificato sul fotogramma)
+    let inclinazione = 0;
+    if (copione.verdellinese === 'KwameMensah') {
+        if (fase.nome === 'sipario') inclinazione = -15 * avanzamento;
+        else if (fase.nome === 'gesto') inclinazione = -15;
+        else if (fase.nome === 'colpo') inclinazione = -15 + 15 * Math.min(1, avanzamento * 3);
+    }
+
+    // ===== da qui in poi tutto il mondo, sotto l'inclinazione =====
+    c.save();
+    if (inclinazione !== 0) {
+        c.translate(canvas.width / 2, canvas.height / 2);
+        c.rotate((inclinazione * Math.PI) / 180);
+        c.translate(-canvas.width / 2, -canvas.height / 2);
+    }
+
+    // fondale: disegnato oltre i bordi, così inclinandolo non restano angoli vuoti
+    const margine = 400;
+    const cielo = c.createLinearGradient(0, -margine, 0, suoloScena);
     cielo.addColorStop(0, '#0a1410');
     cielo.addColorStop(0.55, '#101d18');
     cielo.addColorStop(1, '#16261f');
     c.fillStyle = cielo;
-    c.fillRect(0, 0, canvas.width, suoloScena);
+    c.fillRect(-margine, -margine, canvas.width + margine * 2, suoloScena + margine);
 
     // l'alone del personaggio, dietro a tutto
     const centro = { x: (xAttaccante + xDifensore) / 2, y: suoloScena - 90 };
@@ -1195,25 +1211,24 @@ function disegnaCutscene() {
     alone.addColorStop(0, (copione.colore || '#ffffff') + '4d');
     alone.addColorStop(1, '#00000000');
     c.fillStyle = alone;
-    c.fillRect(0, 0, canvas.width, canvas.height);
+    c.fillRect(-margine, -margine, canvas.width + margine * 2, canvas.height + margine * 2);
 
     // il suolo
     c.fillStyle = '#0d1712';
-    c.fillRect(0, suoloScena, canvas.width, canvas.height - suoloScena);
-    // righe di prospettiva: danno l'idea di un piano su cui si sta in piedi
+    c.fillRect(-margine, suoloScena, canvas.width + margine * 2, canvas.height - suoloScena + margine);
     c.strokeStyle = 'rgba(125,255,125,0.10)';
     c.lineWidth = 1;
     for (let riga = 1; riga <= 4; riga++) {
         const y = suoloScena + riga * riga * 9;
         c.beginPath();
-        c.moveTo(0, y);
-        c.lineTo(canvas.width, y);
+        c.moveTo(-margine, y);
+        c.lineTo(canvas.width + margine, y);
         c.stroke();
     }
     c.fillStyle = (copione.colore || '#7dff7d') + '55';
-    c.fillRect(0, suoloScena, canvas.width, 2);
+    c.fillRect(-margine, suoloScena, canvas.width + margine * 2, 2);
 
-    // --- ombre sotto i piedi: senza, i lottatori galleggiano
+    // ombre sotto i piedi: senza, i lottatori galleggiano
     c.fillStyle = 'rgba(0,0,0,0.45)';
     for (const chi of [attaccante, difensore]) {
         c.beginPath();
@@ -1236,21 +1251,24 @@ function disegnaCutscene() {
     difensore.draw();
     c.restore();
 
-    // --- raggi di luce dietro il personaggio durante il gesto
-    if (fase.nome === 'gesto') {
-        c.save();
-        c.globalAlpha = 0.18 + 0.12 * Math.sin(avanzamento * Math.PI * 4);
-        c.strokeStyle = copione.colore || '#ffffff';
-        c.lineWidth = 2;
-        for (let i = 0; i < 7; i++) {
-            const angolo = (Math.PI / 7) * i + avanzamento;
-            c.beginPath();
-            c.moveTo(centro.x, centro.y);
-            c.lineTo(centro.x + Math.cos(angolo) * 520, centro.y + Math.sin(angolo) * 520);
-            c.stroke();
-        }
-        c.restore();
-    }
+    // --- l'effetto proprio di questo verdellinese, sopra i lottatori
+    disegnaEffettoProprioCutscene(c, {
+        larghezza: canvas.width,
+        altezza: canvas.height,
+        suolo: suoloScena,
+        fase: fase.nome,
+        dentroFase: dentroFase,
+        avanzamento: avanzamento,
+        colore: copione.colore,
+        attaccante: attaccante,
+        difensore: difensore,
+        xAttaccante: xAttaccante,
+        xDifensore: xDifensore,
+        scena: scena
+    });
+
+    c.restore();
+    // ===== fine del mondo inclinato: da qui in poi si torna dritti =====
 
     // --- vignettatura
     const vignetta = c.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.42,
