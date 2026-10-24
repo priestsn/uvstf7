@@ -296,6 +296,12 @@
         if (sw._sorveglianza) { clearInterval(sw._sorveglianza); sw._sorveglianza = null; }
         if (!voce || !voce.ammessa) return null;
 
+        // Durante una cutscene il mondo è fermo APPOSTA: i comandi non devono
+        // avere effetto. Senza questa guardia lo sciame segnalerebbe centinaia
+        // di "azione-persa" finte ogni volta che una ultimate va a segno.
+        const scenaInCorso = (typeof cutsceneAttiva !== 'undefined') && cutsceneAttiva;
+        if (scenaInCorso) return null;
+
         aggiornaAzioneInCorso();
 
         if (!voce.reazioneVista) {

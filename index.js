@@ -6,7 +6,7 @@
 // (è successo davvero: sfondo piccolo in alto a sinistra e selezione tagliata).
 // Qui si chiede versione.json SENZA cache: se il build del server è più recente
 // di quello compilato in questo file, la pagina si ricarica da sola una volta.
-const BUILD_PAGINA = 15;
+const BUILD_PAGINA = 16;
 
 (function controlloVersione() {
     if (typeof fetch !== 'function') {
@@ -673,10 +673,12 @@ function risolviImpatto(attaccante, difensore) {
     }
 
     if (difensore.isParata) {
-        // L'ultimate rompe la parata e applica il suo stato
+        // L'ultimate rompe la parata e apre la scena del verdellinese; il danno
+        // e lo stato arrivano alla fine della scena (vedi aggiornaCutscene).
         if (attaccante.attaccoUltimate) {
             attaccante.ultimateHaColpito = true;
             difensore.isParata = false;
+            if (avviaCutscene(attaccante, difensore)) return;
             applicaDanno(attaccante, difensore, danno, true);
             applicaEffettoUltimate(attaccante, difensore);
             particelleDiImpulso(difensore, coloreEffetti(attaccante), 24, 8, 'ultimate', 2.4);
@@ -1073,10 +1075,232 @@ function disegnaAvviso() {
 // colpo finale, la caduta e un cartello con l'esito (js/CerimoniaFine.js).
 let cerimoniaFine = null;
 
+// La cutscene della ultimate in corso, se c'è. Mentre è attiva il gioco si
+// ferma: niente fisica, niente comandi, solo la scena.
+let cutsceneAttiva = null;
+
 /**
  * Fa partire la cerimonia di fine partita. `motivo` è 'ko' oppure 'tempo'.
  * Il menu si apre solo alla fine, o subito se il giocatore preme Invio.
  */
+
+// ========================================
+// Cutscene delle ultimate
+// ==========================================
+// Quando una ultimate va a segno, il gioco si ferma per un secondo e mezzo e
+// parte la scena di quel verdellinese. Il danno non si applica subito: arriva
+// alla fine della scena. Così il colpo si vede tutto, e la scena non è un
+// intermezzo decorativo sopra un calcolo già fatto.
+
+/** Quanti passi sono passati dentro la fase in corso (0..passi della fase). */
+function progressoFaseCutscene(scena) {
+    if (!scena || !scena.copione) return 0;
+    let prima = 0;
+    for (let i = 0; i < scena.fase; i++) prima += scena.copione.fasi[i].passi;
+    return Math.max(0, scena.passi - prima);
+}
+
+/**
+ * Fa partire la scena. Torna false se il verdellinese non ha una scena o se una
+ * scena è già in corso: in quel caso il colpo si applica normalmente.
+ */
+function avviaCutscene(attaccante, difensore) {
+    if (cutsceneAttiva) return false;
+    if (!attaccante || !attaccante.personaggio) return false;
+
+    const scena = avviaScenaCutscene(attaccante.personaggio.id);
+    if (!scena.attiva) return false;
+
+    scena.attaccante = attaccante;
+    scena.difensore = difensore;
+    scena.danno = attaccante.datiUltimate ? attaccante.datiUltimate.danno : 0;
+    cutsceneAttiva = scena;
+
+    // le barre spariscono: durante la scena lo schermo è del cinema
+    const barre = document.querySelector('#hud');
+    if (barre) barre.style.opacity = '0';
+    return true;
+}
+
+/** Un passo della scena; alla fine applica il colpo e restituisce il gioco. */
+function aggiornaCutscene() {
+    if (!cutsceneAttiva) return;
+
+    cutsceneAttiva = avanzaScenaCutscene(cutsceneAttiva);
+    if (cutsceneAttiva.attiva) return;
+
+    const scena = cutsceneAttiva;
+    cutsceneAttiva = null;
+
+    const barre = document.querySelector('#hud');
+    if (barre) barre.style.opacity = '1';
+
+    if (scena.attaccante && scena.difensore) {
+        applicaDanno(scena.attaccante, scena.difensore, scena.danno, true);
+        applicaEffettoUltimate(scena.attaccante, scena.difensore);
+    }
+}
+
+/**
+ * Disegna la scena.
+ *
+ * Prima versione: fondale nero, camera che si stringe sui due, alone del colore
+ * del personaggio, barre nere, flash e nome della ultimate. Gli effetti propri
+ * di ogni scena (radici, spirale, crepe, stelle, eclissi...) si aggiungono uno
+ * per volta dentro il ramo della fase.
+ */
+function disegnaCutscene() {
+    const scena = cutsceneAttiva;
+    if (!scena) return;
+
+    const fase = faseCorrenteScenaCutscene(scena);
+    const copione = scena.copione;
+    const dentroFase = progressoFaseCutscene(scena);
+    const totaleFase = fase ? fase.passi : 1;
+    const avanzamento = dentroFase / Math.max(1, totaleFase);
+
+    // La linea di terra della scena sta PIÙ IN ALTO di quella del gioco:
+    // il suolo vero finiva sotto la barra nera e i lottatori sembravano
+    // galleggiare nel vuoto (visto sul fotogramma, non immaginato).
+    const suoloScena = Math.round(canvas.height * 0.74);
+
+    // --- regia: i due vengono MESSI IN POSA, non lasciati dove stavano.
+    // È la differenza fra una scena e due sprite fermi ai lati dello schermo.
+    const attaccante = scena.attaccante;
+    const difensore = scena.difensore;
+    const posizioneAttaccante = { x: attaccante.position.x, y: attaccante.position.y };
+    const posizioneDifensore = { x: difensore.position.x, y: difensore.position.y };
+
+    // durante il colpo si avvicinano: l'attaccante scatta in avanti
+    const vicini = (fase.nome === 'colpo');
+    const xAttaccante = canvas.width * (vicini ? 0.42 : 0.34);
+    const xDifensore = canvas.width * (vicini ? 0.60 : 0.66);
+
+    attaccante.position.x = xAttaccante;
+    attaccante.position.y = suoloScena - attaccante.height;
+    difensore.position.x = xDifensore;
+    difensore.position.y = suoloScena - difensore.height;
+
+    // --- fondale: cielo scuro, orizzonte, suolo
+    const cielo = c.createLinearGradient(0, 0, 0, suoloScena);
+    cielo.addColorStop(0, '#0a1410');
+    cielo.addColorStop(0.55, '#101d18');
+    cielo.addColorStop(1, '#16261f');
+    c.fillStyle = cielo;
+    c.fillRect(0, 0, canvas.width, suoloScena);
+
+    // l'alone del personaggio, dietro a tutto
+    const centro = { x: (xAttaccante + xDifensore) / 2, y: suoloScena - 90 };
+    const alone = c.createRadialGradient(centro.x, centro.y, 30, centro.x, centro.y, 430);
+    alone.addColorStop(0, (copione.colore || '#ffffff') + '4d');
+    alone.addColorStop(1, '#00000000');
+    c.fillStyle = alone;
+    c.fillRect(0, 0, canvas.width, canvas.height);
+
+    // il suolo
+    c.fillStyle = '#0d1712';
+    c.fillRect(0, suoloScena, canvas.width, canvas.height - suoloScena);
+    // righe di prospettiva: danno l'idea di un piano su cui si sta in piedi
+    c.strokeStyle = 'rgba(125,255,125,0.10)';
+    c.lineWidth = 1;
+    for (let riga = 1; riga <= 4; riga++) {
+        const y = suoloScena + riga * riga * 9;
+        c.beginPath();
+        c.moveTo(0, y);
+        c.lineTo(canvas.width, y);
+        c.stroke();
+    }
+    c.fillStyle = (copione.colore || '#7dff7d') + '55';
+    c.fillRect(0, suoloScena, canvas.width, 2);
+
+    // --- ombre sotto i piedi: senza, i lottatori galleggiano
+    c.fillStyle = 'rgba(0,0,0,0.45)';
+    for (const chi of [attaccante, difensore]) {
+        c.beginPath();
+        c.ellipse(chi.position.x + chi.width / 2, suoloScena + 6, chi.width * 0.42, 7, 0, 0, Math.PI * 2);
+        c.fill();
+    }
+
+    // --- camera: stringe sul punto di mezzo della posa
+    let zoom = 1;
+    if (fase.nome === 'sipario') zoom = 1.04 + 0.10 * avanzamento;
+    if (fase.nome === 'gesto') zoom = 1.18;
+    if (fase.nome === 'colpo') zoom = 1.32;
+    if (fase.nome === 'ritorno') zoom = 1.2 - 0.2 * avanzamento;
+
+    c.save();
+    c.translate(canvas.width / 2, suoloScena - 70);
+    c.scale(zoom, zoom);
+    c.translate(-centro.x, -(suoloScena - 70));
+    attaccante.draw();
+    difensore.draw();
+    c.restore();
+
+    // --- raggi di luce dietro il personaggio durante il gesto
+    if (fase.nome === 'gesto') {
+        c.save();
+        c.globalAlpha = 0.18 + 0.12 * Math.sin(avanzamento * Math.PI * 4);
+        c.strokeStyle = copione.colore || '#ffffff';
+        c.lineWidth = 2;
+        for (let i = 0; i < 7; i++) {
+            const angolo = (Math.PI / 7) * i + avanzamento;
+            c.beginPath();
+            c.moveTo(centro.x, centro.y);
+            c.lineTo(centro.x + Math.cos(angolo) * 520, centro.y + Math.sin(angolo) * 520);
+            c.stroke();
+        }
+        c.restore();
+    }
+
+    // --- vignettatura
+    const vignetta = c.createRadialGradient(canvas.width / 2, canvas.height / 2, canvas.height * 0.42,
+        canvas.width / 2, canvas.height / 2, canvas.height * 0.95);
+    vignetta.addColorStop(0, 'rgba(0,0,0,0)');
+    vignetta.addColorStop(1, 'rgba(0,0,0,0.85)');
+    c.fillStyle = vignetta;
+    c.fillRect(0, 0, canvas.width, canvas.height);
+
+    // --- barre nere: entrano nei primi passi, escono negli ultimi
+    const entrata = Math.min(1, scena.passi / 10);
+    const uscita = fase.nome === 'ritorno' ? Math.max(0, 1 - avanzamento) : 1;
+    const altezzaBarra = Math.round(canvas.height * 0.11 * Math.min(entrata, uscita));
+    c.fillStyle = '#000000';
+    c.fillRect(0, 0, canvas.width, altezzaBarra);
+    c.fillRect(0, canvas.height - altezzaBarra, canvas.width, altezzaBarra);
+
+    // --- flash del colpo
+    if (fase.nome === 'colpo' && dentroFase < 5) {
+        c.fillStyle = 'rgba(255,255,255,' + (0.5 * (1 - dentroFase / 5)).toFixed(3) + ')';
+        c.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // --- il cartello con il nome della ultimate
+    if (fase.nome === 'colpo' || fase.nome === 'ritorno') {
+        const apparso = Math.min(1, dentroFase / 3);
+        const testo = copione.testo;
+        c.save();
+        c.globalAlpha = apparso;
+        c.font = 'bold 44px "Segoe UI", Arial, sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        const larghezza = c.measureText(testo).width + 64;
+        const y = canvas.height * 0.22;
+        c.fillStyle = 'rgba(0,0,0,0.72)';
+        c.fillRect(canvas.width / 2 - larghezza / 2, y - 32, larghezza, 64);
+        c.fillStyle = copione.colore || '#ffffff';
+        c.fillRect(canvas.width / 2 - larghezza / 2, y - 32, 5, 64);
+        c.fillText(testo, canvas.width / 2, y);
+        c.restore();
+    }
+
+    // --- si rimettono i lottatori dove stavano: la scena non deve spostare
+    // nessuno nella simulazione vera
+    attaccante.position.x = posizioneAttaccante.x;
+    attaccante.position.y = posizioneAttaccante.y;
+    difensore.position.x = posizioneDifensore.x;
+    difensore.position.y = posizioneDifensore.y;
+}
+
 function avviaCerimoniaFine(motivo) {
     const vincitore = (Player.health === Enemy.health)
         ? null
@@ -1629,6 +1853,14 @@ function passoSimulazione() {
 
     // Fuori dalla partita non si aggiorna nulla: resta visibile il menu
     if (statoCorrente !== STATI.PARTITA) {
+        return;
+    }
+
+    // Cutscene in corso: il gioco non simula, si aggiorna la scena e si disegna
+    // solo lei. Nessun comando, nessuna fisica, nessun timer.
+    if (cutsceneAttiva) {
+        aggiornaCutscene();
+        disegnaCutscene();
         return;
     }
 
