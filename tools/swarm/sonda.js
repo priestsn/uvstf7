@@ -72,7 +72,14 @@
             // senza questo dato, ogni parata in aria sembra un comando perso
             inAria: (typeof ground !== 'undefined')
                 ? (l.position.y + l.height < ground - 1)
-                : false
+                : false,
+            // --- meccaniche nuove: la politica le usa per decidere ---
+            silenzio: (l.silenzioTimer || 0) > 0,
+            ricaricaTattica: (l.ricaricaTattica || 0) > 0,
+            ricaricaDistanza: (l.ricaricaDistanza || 0) > 0,
+            combo: l.combo ? l.combo.colpi : 0,
+            sospeso: (l.sospeso || 0) > 0,
+            intangibile: (l.intangibile || 0) > 0
         };
     }
 

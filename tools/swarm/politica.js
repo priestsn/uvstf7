@@ -12,6 +12,15 @@ const STAMINA_MINIMA_CARICA = 40;  // sotto questa soglia si attacca normale
 const FINESTRA_PARATA = 220;       // px: sotto questa distanza conviene parare
 const PROBABILITA_SALTO = 0.08;
 
+// Le meccaniche nuove vanno provate, non solo scritte. Senza queste azioni lo
+// sciame giocava la build con combo, tattiche e ultimate senza mai usarle:
+// misurate zero cutscene e zero combo in una corsa intera.
+const PROBABILITA_TATTICA = 0.06;   // ogni decisione: un tiro di dado per la tattica
+const PROBABILITA_TIRO = 0.10;      // l'attacco a distanza, quando c'è spazio
+const PROBABILITA_CARICA = 0.18;    // il colpo caricato apre la combo: serve provarlo
+const DISTANZA_TIRO = 420;          // px: oltre questa distanza conviene il tiro
+const SOGLIA_CARICA = 40;           // stamina minima per permettersi una carica
+
 /** Generatore deterministico (mulberry32): stesso seme, stessa partita. */
 function casualeConSeme(seme) {
     let stato = (seme || 1) >>> 0;
@@ -42,6 +51,26 @@ function prossimaAzione(stato, casuale) {
     const versoDestra = stato.p2.x > stato.p1.x;
 
     if (stato.p1.ultimate >= 100 && distanza < FINESTRA_PARATA * 2) return 'ultimate';
+
+    // --- le meccaniche nuove ---
+    // Chi è per aria si colpisce: è la continuazione della combo.
+    if (stato.p2.inAria && distanza < DISTANZA_ATTACCO * 1.4) return 'attacco';
+
+    // L'avversario stordito è la porta della combo: si attacca subito.
+    if (stato.p2.stun && distanza < DISTANZA_ATTACCO) return 'attacco';
+
+    // La tattica costa stamina e ha la sua ricarica: si prova ogni tanto.
+    if (!stato.p1.silenzio && !stato.p1.ricaricaTattica && (stato.p1.stamina || 0) > 30 &&
+        dado() < PROBABILITA_TATTICA) return 'tattica';
+
+    // Lontano, col tiro si può continuare o aprire: la distanza non è un muro.
+    if (distanza > DISTANZA_TIRO && !stato.p1.ricaricaDistanza) return 'distanza';
+
+    if (stato.p1.stamina > SOGLIA_CARICA && !stato.p1.caricando &&
+        distanza < DISTANZA_ATTACCO && dado() < PROBABILITA_CARICA) return 'carica';
+
+    if (distanza > DISTANZA_ATTACCO && distanza < DISTANZA_TIRO && !stato.p1.ricaricaDistanza &&
+        dado() < PROBABILITA_TIRO) return 'distanza';
 
     if (stato.p2.attacco && distanza < FINESTRA_PARATA) return 'parata';
 

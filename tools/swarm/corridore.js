@@ -34,6 +34,23 @@ function contestoInParole(campione) {
  * opzioni: {numero, url, portaCdp, minuti, partite, seme, usaGiudice, ogniGiudizioSec,
  *           cartella, scriviEvento}
  */
+/**
+ * Il tasto da premere per un'azione.
+ *
+ * La carica non è un tasto suo: è l'attacco TENUTO premuto più a lungo, ed è
+ * l'unico modo di far partire la combo, perché è il colpo caricato a stunnare.
+ */
+function tastoDi(azione) {
+    if (azione === 'attacco' || azione === 'carica') return 'h';
+    if (azione === 'parata') return 'j';
+    if (azione === 'ultimate') return 'g';
+    if (azione === 'distanza') return 'k';
+    if (azione === 'tattica') return 'y';
+    if (azione === 'salto') return 'w';
+    if (azione === 'sinistra') return 'a';
+    return 'd';
+}
+
 async function corriUnBot(opzioni) {
     const scelte = Object.assign({
         numero: 1,
@@ -203,12 +220,8 @@ async function corriUnBot(opzioni) {
                         (typeof vitaNemicoPrima === 'number' ? vitaNemicoPrima : 'null') + ')');
                 } catch (errore) { /* pagina in transizione */ }
 
-                await nav.premiTasto(azione === 'attacco' ? 'h' :
-                    azione === 'parata' ? 'j' :
-                        azione === 'ultimate' ? 'g' :
-                            azione === 'salto' ? 'w' :
-                                azione === 'sinistra' ? 'a' : 'd',
-                    azione === 'parata' ? 160 : 70);
+                await nav.premiTasto(tastoDi(azione),
+                    azione === 'parata' ? 160 : (azione === 'carica' ? 650 : 70));
 
                 if (azione === 'attacco') ultimoAttacco = adesso;
 
@@ -736,12 +749,8 @@ async function corriOnline(opzioni) {
                             (typeof vitaPrima === 'number' ? vitaPrima : 'null') + ')');
                     } catch (errore) { /* niente */ }
 
-                    await nav.premiTasto(azione === 'attacco' ? 'h' :
-                        azione === 'parata' ? 'j' :
-                            azione === 'ultimate' ? 'g' :
-                                azione === 'salto' ? 'w' :
-                                    azione === 'sinistra' ? 'a' : 'd',
-                        azione === 'parata' ? 160 : 70);
+                    await nav.premiTasto(tastoDi(azione),
+                        azione === 'parata' ? 160 : (azione === 'carica' ? 650 : 70));
 
                     if (azione === 'attacco') ultimoAttacco = adesso;
 
