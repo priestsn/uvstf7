@@ -6,7 +6,7 @@
 // (è successo davvero: sfondo piccolo in alto a sinistra e selezione tagliata).
 // Qui si chiede versione.json SENZA cache: se il build del server è più recente
 // di quello compilato in questo file, la pagina si ricarica da sola una volta.
-const BUILD_PAGINA = 18;
+const BUILD_PAGINA = 19;
 
 (function controlloVersione() {
     if (typeof fetch !== 'function') {
@@ -295,6 +295,8 @@ function mostraAvviso(testo, colore, durata, grande) {
  * - trasforma un attacco tenuto premuto in attacco caricato
  */
 function aggiornaMeccaniche(lottatore) {
+    if (lottatore === Player) avvisiDelleMeccaniche();
+
     if (gameOver || lottatore.isDead) {
         return;
     }
@@ -797,6 +799,30 @@ function apriCombo(attaccante, difensore, dannoBase) {
 }
 
 /**
+ * Avvisi per le meccaniche che nessuno scoprirebbe da solo: quando
+ * l'avversario è stordito la combo è raggiungibile, e lo dice a schermo.
+ */
+function avvisiDelleMeccaniche() {
+    if (gameOver || statoCorrente !== STATI.PARTITA) return;
+
+    const avversario = Enemy;
+    if (!avversario || avversario.isDead) return;
+
+    const adesso = frameGioco;
+    const vicino = Player && Math.abs(Player.position.x - avversario.position.x) < 190;
+
+    if (vicino && avversario.isStunned && !avversario.combo) {
+        // una volta per stun, non sessanta volte al secondo
+        if (!avversario._avvisoComboMostrato) {
+            avversario._avvisoComboMostrato = true;
+            mostraAvviso('COMBO!', '#ffe066', 45, true);
+        }
+    } else {
+        avversario._avvisoComboMostrato = false;
+    }
+}
+
+/**
  * Secondo e terzo colpo, in aria. Il terzo spedisce lontano e chiude la combo:
  * dopo si può continuare solo con un attacco a distanza.
  */
@@ -1050,6 +1076,20 @@ function disegnaStati(lottatore) {
     if (lottatore.marchioTimer > 0) stati.push(['MARCHIATO', '#ff6b6b']);
     if (lottatore.silenzioTimer > 0) stati.push(['SILENZIO', '#ffd34d']);
     if (lottatore.buffTimer > 0) stati.push(['VELOCE', '#7dff7d']);
+
+    // --- combo e sue conseguenze, scritte dove si guarda ---
+    if (lottatore.combo && lottatore.combo.colpi > 0) {
+        stati.push(['COMBO ' + lottatore.combo.colpi + '/3', '#ffe066']);
+    }
+    if (lottatore.intangibile > 0) stati.push(['INTANGIBILE', '#ffffff']);
+
+    // --- le due abilità nuove: pronte o in ricarica ---
+    if (lottatore.personaggio && lottatore.personaggio.tattica) {
+        if ((lottatore.ricaricaTattica || 0) <= 0) stati.push(['TAT PRONTA', '#c08bff']);
+    }
+    if (lottatore.personaggio && lottatore.personaggio.distanza) {
+        if ((lottatore.ricaricaDistanza || 0) <= 0) stati.push(['TIRO PRONTO', '#7dff9d']);
+    }
 
     if (stati.length === 0) {
         return;

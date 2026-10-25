@@ -17,9 +17,13 @@
 // rotazione e la safe area stanno in js/Mobile.js.
 
 // Azioni dei tre tasti a destra: gli stessi nomi usati dai keybinds
+// Cinque tasti, non tre: senza DIStanza e TAT non c'era modo di usare le
+// meccaniche nuove da telefono, e chi gioca da tablet non le vedeva esistere.
 const AZIONI_TASCHE = [
     { azione: 'attacco', testo: 'ATT', classe: 'attacco' },
     { azione: 'parata', testo: 'PAR', classe: 'parata' },
+    { azione: 'distanza', testo: 'DIS', classe: 'distanza' },
+    { azione: 'tattica', testo: 'TAT', classe: 'tattica' },
     { azione: 'ultimate', testo: 'ULT', classe: 'ultimate' }
 ];
 

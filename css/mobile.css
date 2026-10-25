@@ -83,6 +83,14 @@
         font-size: 11px;
     }
 
+    /* Cinque tasti invece di tre: su schermi stretti si stringe anche DIS e TAT */
+    .tasto-touch.distanza,
+    .tasto-touch.tattica {
+        width: 52px;
+        height: 52px;
+        font-size: 10px;
+    }
+
     .comandi-touch.due-giocatori {
         flex-wrap: wrap;
         row-gap: 6px;
