@@ -917,6 +917,23 @@ canvas {
     border-color: #8ab4ff;
 }
 
+.info-passiva,
+.info-tattica,
+.info-distanza {
+    font-size: 12px;
+    line-height: 1.35;
+    color: #b9c9c2;
+    margin-top: 2px;
+}
+
+.info-tattica {
+    color: #d9c4ff;
+}
+
+.info-distanza {
+    color: #b9e9c9;
+}
+
 .tasto-touch.distanza {
     color: #bfe9d0;
     border-color: #7dff9d;

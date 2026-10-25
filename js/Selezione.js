@@ -270,7 +270,21 @@ function aggiornaSchedaGiocatore(selettore, indice, confermato, extra = '') {
         ' &middot; Velocità ' + stat.velocita +
         ' &middot; Salto ' + Math.abs(stat.salto) + '</div>' +
         '<div class="info-ultimate">ULT &mdash; ' + personaggio.ultimate.nome +
-        ': ' + personaggio.ultimate.descrizione + '</div>';
+        ': ' + personaggio.ultimate.descrizione + '</div>' +
+        // Passiva e tattica vanno DETTE nella scheda: erano nel motore ma
+        // nessuno poteva scoprirle scegliendo il personaggio.
+        (personaggio.passiva
+            ? '<div class="info-passiva">PASSIVA &mdash; ' + personaggio.passiva.nome +
+                ': ' + personaggio.passiva.descrizione + '</div>'
+            : '') +
+        (personaggio.tattica
+            ? '<div class="info-tattica">TATTICA &mdash; ' + personaggio.tattica.nome +
+                ' (' + personaggio.tattica.costo + ' stamina): ' + personaggio.tattica.descrizione + '</div>'
+            : '') +
+        (personaggio.distanza
+            ? '<div class="info-distanza">DISTANZA &mdash; ' + personaggio.distanza.nome +
+                ': danno ' + personaggio.distanza.danno + ', ' + personaggio.distanza.descrizione + '</div>'
+            : '');
 }
 
 /**
