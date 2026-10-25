@@ -6,7 +6,7 @@
 // (è successo davvero: sfondo piccolo in alto a sinistra e selezione tagliata).
 // Qui si chiede versione.json SENZA cache: se il build del server è più recente
 // di quello compilato in questo file, la pagina si ricarica da sola una volta.
-const BUILD_PAGINA = 17;
+const BUILD_PAGINA = 18;
 
 (function controlloVersione() {
     if (typeof fetch !== 'function') {
@@ -77,6 +77,12 @@ const ULTIMATE_PERSA_PER_STUN = 25;      // carica persa quando si viene stunnat
 // Sostituisce il setTimeout che non era tracciato (BUG-20): lo stato si chiude
 // contando i frame, come il resto delle meccaniche.
 const DANNO_FRAMI = 12;
+
+// Finestra di "In Tempo" (Amara): quanto resta aperto il colpo potenziato dopo
+// una parata riuscita. La specifica dice "entro 6 passi": 6 passi sono un
+// decimo di secondo, meno del tempo di reazione umano — qui diventa 45 passi
+// (0,75 s), che è il minimo perché la tattica sia giocabile.
+const FINESTRA_IN_TEMPO = 45;
 
 // Elementi dell'HUD letti una sola volta (niente querySelector nel game loop)
 const hud = {
@@ -303,6 +309,52 @@ function aggiornaMeccaniche(lottatore) {
     if (lottatore.ricaricaDistanza > 0) {
         lottatore.ricaricaDistanza = comboAggiornaTimer(lottatore.ricaricaDistanza);
     }
+    if ((lottatore.ricaricaTattica || 0) > 0) {
+        lottatore.ricaricaTattica = comboAggiornaTimer(lottatore.ricaricaTattica);
+    }
+    if ((lottatore.radicato || 0) > 0) {
+        lottatore.radicato = comboAggiornaTimer(lottatore.radicato);
+    }
+    if ((lottatore.recuperoTattica || 0) > 0) {
+        lottatore.recuperoTattica = comboAggiornaTimer(lottatore.recuperoTattica);
+    }
+    if ((lottatore.haMancatoTimer || 0) > 0) {
+        lottatore.haMancatoTimer = comboAggiornaTimer(lottatore.haMancatoTimer);
+    }
+    if ((lottatore.inTempoFinestra || 0) > 0) {
+        lottatore.inTempoFinestra = comboAggiornaTimer(lottatore.inTempoFinestra);
+    }
+
+    // Puntamento (Bakari): serve stare FERMI, quindi si conta solo il fermo
+    if ((lottatore.puntamento || 0) > 0) {
+        const fermo = Math.abs(lottatore.velocity.x) < 0.01 && !lottatore.isAttacking &&
+            lottatore.position.y + lottatore.height >= ground - 1;
+        if (fermo) {
+            lottatore.puntamento = comboAggiornaTimer(lottatore.puntamento);
+            if (lottatore.puntamento === 0) {
+                lottatore.puntamentoPronto = true;
+            }
+        }
+    }
+
+    // Radici Profonde (Tarisai): è l'unico verdellinese che rigenera stamina.
+    // Nel gioco la rigenerazione non esisteva: senza questa riga la sua
+    // passiva non avrebbe avuto niente da accelerare.
+    if (idVerdellinese(lottatore) === 'TarisaiMoyo' && !lottatore.isParata &&
+        !lottatore.isAttacking && !lottatore.isStunned && lottatore.velenoTimer <= 0 &&
+        lottatore.bruciaturaTimer <= 0) {
+        lottatore.stamina = Math.min(lottatore.statistiche.stamina, lottatore.stamina + 0.15);
+    }
+
+    // Passo Leggero (Kwame): saltare non è un costo
+    if (idVerdellinese(lottatore) === 'KwameMensah' && lottatore.position.y + lottatore.height >= ground - 1 &&
+        lottatore.velocity.y === 0 && lottatore.appenaAtterrato) {
+        lottatore.stamina = Math.min(lottatore.statistiche.stamina, lottatore.stamina + 4);
+        lottatore.appenaAtterrato = false;
+    }
+    if (lottatore.position.y + lottatore.height < ground - 2) {
+        lottatore.appenaAtterrato = true;
+    }
     if (lottatore.intangibile > 0) {
         lottatore.intangibile = comboAggiornaTimer(lottatore.intangibile);
     } else if (lottatore.combo && !lottatore.intangibileAttesa && lottatore.velocity.y >= 0 &&
@@ -449,6 +501,11 @@ function applicaDanno(attaccante, difensore, danno, forza = false) {
     // Il colpo doppio dello STESSO attacco è già impedito da attaccoHaColpito
     // (e dalla ultimate da ultimateHaColpito), quindi questa guardia non
     // serviva a niente: toglieva solo i colpi legittimi.
+    // Contraccolpo (Amara): ogni colpo subito le carica la ultimate
+    if (idVerdellinese(difensore) === 'AmaraDiallo') {
+        difensore.ultimate = Math.min(100, difensore.ultimate + 2);
+    }
+
     difensore.isTakingDmg = true;
     difensore.framesDanno = 0;
     difensore.isParata = false;
@@ -522,7 +579,11 @@ function applicaEffettoUltimate(attaccante, difensore) {
             break;
 
         case 'silenzio':
-            difensore.silenzioTimer = durata;
+            // Voce degli Antenati (Sekou): gli altri possono spegnere le
+            // abilità, su di lui non attacca
+            if (idVerdellinese(difensore) !== 'SekouCamara') {
+                difensore.silenzioTimer = durata;
+            }
             break;
 
         case 'eclissi':
@@ -534,6 +595,173 @@ function applicaEffettoUltimate(attaccante, difensore) {
 /**
  * Crea il proiettile di un'ultimate a distanza
  */
+/** Il difensore è dentro il cerchio a terra? */
+function avversarioDentroCerchio(cerchio, difensore) {
+    const cx = difensore.position.x + difensore.width / 2;
+    const dx = Math.abs(cx - cerchio.x);
+    const piedi = difensore.position.y + difensore.height;
+    return dx <= cerchio.raggio && Math.abs(piedi - ground) < 160;
+}
+
+/**
+ * Freccia del Ritorno (Zuri): se la freccia lo colpisce, lei si ritrova dietro
+ * di lui. Otto passi di recupero all'arrivo, così non è una combo infinita.
+ */
+function teletrasportaDietro(lottatore, avversario) {
+    const arrivoADestra = lottatore.position.x <= avversario.position.x;
+    const x = avversario.position.x + (arrivoADestra ? -1 : 1) * 60;
+    lottatore.position.x = Math.max(0, Math.min(canvas.width - lottatore.width, x));
+    lottatore.position.y = avversario.position.y;
+    lottatore.facing = arrivoADestra ? 1 : -1;
+    lottatore.velocity.x = 0;
+    lottatore.velocity.y = 0;
+    lottatore.recuperoTattica = 8;
+    if (!MOVIMENTO_RIDOTTO) scuoti(effetti, 3);
+}
+
+/**
+ * Scarto (Kwame): dopo una parata riuscita scivola indietro
+ * fermo. La parata smette di essere solo difesa e diventa uscita.
+ */
+function applicaScarto(difensore, attaccante) {
+    if (!difensore.scartoArmato) return;
+    const verso = difensore.position.x >= attaccante.position.x ? 1 : -1;
+    difensore.spinta = verso * 16;   // ~60 px prima di spegnersi
+    difensore.scartoArmato = false;
+    particelleDiImpulso(difensore, '#d29bff', 10, 4, 'scarto', 1.4);
+}
+
+/** L'identificativo del verdellinese in campo, o null. */
+function idVerdellinese(lottatore) {
+    return (lottatore && lottatore.personaggio && lottatore.personaggio.id) || null;
+}
+
+/**
+ * La tattica: un tasto per tutti, nove effetti.
+ *
+ * Ogni tattica costa stamina e ha la sua ricarica; silenzio e congelamento la
+ * bloccano come bloccano la ultimate. Il comportamento specifico sta nel
+ * `tipo` del dato del verdellinese, così aggiungere una tattica domani
+ * significa aggiungere un caso qui e un dato là.
+ */
+function usaTattica(lottatore) {
+    if (!lottatore || lottatore.isDead || gameOver) return false;
+    if (lottatore.isStunned || lottatore.congelamentoTimer > 0) return false;
+    if (lottatore.silenzioTimer > 0 && idVerdellinese(lottatore) !== 'SekouCamara') {
+        lampeggiaStamina(lottatore);
+        return false;
+    }
+    if ((lottatore.ricaricaTattica || 0) > 0) return false;
+
+    const tattica = lottatore.personaggio && lottatore.personaggio.tattica;
+    if (!tattica) return false;
+
+    if (lottatore.stamina < tattica.costo) {
+        lampeggiaStamina(lottatore);
+        return false;
+    }
+
+    const avversario = lottatore === Player ? Enemy : Player;
+    let riuscita = false;
+
+    switch (tattica.tipo) {
+        case 'radicarsi':
+            // Piantarsi: non ti spostano più. Si consuma in difesa, non in attacco.
+            lottatore.radicato = tattica.durata;
+            riuscita = true;
+            break;
+
+        case 'scarto':
+            // Scarto: non è un gesto immediato, è un permesso per la prossima
+            // parata riuscita — scivolare via invece di restare fermo.
+            lottatore.scartoArmato = true;
+            riuscita = true;
+            break;
+
+        case 'ruggito': {
+            const distanza = Math.abs(avversario.position.x - lottatore.position.x);
+            if (distanza > 150) return false;
+            const verso = avversario.position.x >= lottatore.position.x ? 1 : -1;
+            avversario.spinta = verso * 34;
+            particelleDiImpulso(avversario, '#8be9fd', 16, 6, 'ruggito', 1.8);
+            aggiungiOnda(effetti, puntoImpatto(avversario).x, puntoImpatto(avversario).y, '#8be9fd', 140, 9);
+            if (!MOVIMENTO_RIDOTTO) scuoti(effetti, 4);
+            riuscita = true;
+            break;
+        }
+
+        case 'inTempo':
+            // Arma la finestra: la prossima parata riuscita apre il colpo potenziato
+            lottatore.inTempoArmato = true;
+            riuscita = true;
+            break;
+
+        case 'cerchio':
+            proiettili.push({
+                proprietario: lottatore,
+                x: avversario.position.x + avversario.width / 2,
+                y: ground - 10,
+                vx: 0,
+                raggio: 70,
+                danno: 0,
+                colore: '#a8e05f',
+                vita: tattica.durata,
+                cerchio: true
+            });
+            riuscita = true;
+            break;
+
+        case 'frecciaCorta':
+            // La freccia di Zuri: non fa danno. Se colpisce, la porta dietro
+            // l'avversario; se viene parata, stunna chi ha parato.
+            proiettili.push({
+                proprietario: lottatore,
+                x: lottatore.position.x + lottatore.centroCorpo +
+                    (lottatore.facing >= 0 ? 1 : -1) * (lottatore.width / 2 + 26),
+                y: lottatore.position.y + lottatore.height * 0.45,
+                vx: (lottatore.facing >= 0 ? 1 : -1) * 11,
+                raggio: 16,
+                danno: 0,
+                colore: '#ff6b6b',
+                vita: 200,
+                daDistanza: true,
+                freccia: true
+            });
+            riuscita = true;
+            break;
+
+        case 'puntamento':
+            lottatore.puntamento = tattica.durata;
+            lottatore.puntamentoFermo = 0;
+            riuscita = true;
+            break;
+
+        case 'sentenza':
+            // Non è una mossa, è una punizione: vale solo su chi è stordito
+            if (!avversario.isStunned) return false;
+            avversario.silenzioTimer = tattica.durata;
+            particelleDiImpulso(avversario, '#b06aff', 14, 6, 'sentenza', 1.7);
+            riuscita = true;
+            break;
+
+        case 'eclissiMinore':
+            avversario.eclissiTimer = Math.max(avversario.eclissiTimer || 0, tattica.durata);
+            particelleDiImpulso(avversario, '#d29bff', 12, 5, 'eclissi', 1.6);
+            riuscita = true;
+            break;
+
+        default:
+            return false;
+    }
+
+    if (!riuscita) return false;
+
+    lottatore.stamina -= tattica.costo;
+    lottatore.ricaricaTattica = tattica.ricarica || 150;
+    particelleDiImpulso(lottatore, coloreEffetti(lottatore), 8, 4, 'tattica', 1.3);
+    return true;
+}
+
 /**
  * Primo colpo della combo: l'avversario stunnato sale e avanza.
  *
@@ -619,7 +847,10 @@ function attaccoDistanza(lottatore) {
     const dati = lottatore.personaggio && lottatore.personaggio.distanza;
     if (!dati) return false;
 
-    const costo = COMBO.DISTANZA.stamina;
+    // Polvere da Sparo (Bakari): i proiettili gli costano il 30% in meno
+    const costo = (idVerdellinese(lottatore) === 'BakariTraore')
+        ? Math.round(COMBO.DISTANZA.stamina * 0.7)
+        : COMBO.DISTANZA.stamina;
     if (lottatore.stamina < costo) {
         lampeggiaStamina(lottatore);
         return false;
@@ -628,13 +859,18 @@ function attaccoDistanza(lottatore) {
     lottatore.stamina -= costo;
     lottatore.ricaricaDistanza = COMBO.DISTANZA.ricarica;
 
+    // Puntamento (Bakari): chi è rimasto fermo abbastanza spara più grosso e
+    // più veloce — la ricompensa di un rischio che si vede.
+    const potenziato = lottatore.puntamentoPronto === true;
+    if (potenziato) lottatore.puntamentoPronto = false;
+
     const direzione = lottatore.facing >= 0 ? 1 : -1;
     proiettili.push({
         proprietario: lottatore,
         x: lottatore.position.x + lottatore.centroCorpo + direzione * (lottatore.width / 2 + 26),
         y: lottatore.position.y + lottatore.height * 0.45,
-        vx: direzione * dati.velocita,
-        raggio: dati.raggio || 20,
+        vx: direzione * (potenziato ? dati.velocita * 1.5 : dati.velocita),
+        raggio: (dati.raggio || 20) * (potenziato ? 1.5 : 1),
         danno: dati.danno || COMBO.DISTANZA.danno,
         colore: dati.colore || '#ff8a3d',
         vita: 240,
@@ -685,6 +921,16 @@ function aggiornaProiettili() {
             p.y + p.raggio > difensore.position.y &&
             p.y - p.raggio < difensore.position.y + difensore.height;
 
+        // Cerchio a terra (Tarisai): non è un colpo, è una zona che rallenta
+        if (p.cerchio) {
+            const dentro = avversarioDentroCerchio(p, difensore);
+            if (dentro) {
+                difensore.rallentamentoTimer = Math.max(difensore.rallentamentoTimer, 6);
+            }
+            if (p.vita <= 0) proiettili.splice(i, 1);
+            continue;
+        }
+
         if (colpisce) {
             // Chi è intangibile non è colpibile da niente, nemmeno da un tiro
             if (difensore.intangibile > 0) {
@@ -692,10 +938,29 @@ function aggiornaProiettili() {
                 continue;
             }
 
+            // La freccia di Zuri: se viene PARATA non fa niente ma stunna chi
+            // ha parato; se colpisce non fa danno e la porta dietro l'altro.
+            if (p.freccia) {
+                if (difensore.isParata) {
+                    stunna(difensore);
+                    particelleDiImpulso(difensore, '#ff6b6b', 16, 6, 'freccia-parata', 1.9);
+                    proiettili.splice(i, 1);
+                    continue;
+                }
+                const inAria = difensore.sospeso > 0 ||
+                    difensore.position.y + difensore.height < ground - 2;
+                if (!inAria && !difensore.isDead) {
+                    teletrasportaDietro(p.proprietario, difensore);
+                    particelleDiImpulso(difensore, '#ff6b6b', 14, 5, 'freccia-colpita', 1.6);
+                }
+                proiettili.splice(i, 1);
+                continue;
+            }
+
             // L'ultimate rompe la parata
             difensore.isParata = false;
 
-            // Il tiro è il modo per continuare dopo la combo: se il bersaglio è
+            // Il tiro è il modo per continuare dopo la combo
             // ancora per aria lo tiene su qualche passo in più.
             if (p.daDistanza && difensore.sospeso > 0) {
                 difensore.sospeso = Math.max(difensore.sospeso, COMBO.DISTANZA.sospensione);
@@ -735,6 +1000,21 @@ function disegnaProiettili() {
     // proiettile a ogni frame è una delle allocazioni più care del disegno, e
     // il risultato a video è lo stesso.
     for (const p of proiettili) {
+        // Il cerchio di Tarisai sta a terra: si disegna come un'ellisse sul
+        // suolo, non come una sfera che vola.
+        if (p.cerchio) {
+            c.globalAlpha = 0.28;
+            c.fillStyle = p.colore;
+            c.beginPath();
+            c.ellipse(p.x, p.y, p.raggio, p.raggio * 0.32, 0, 0, Math.PI * 2);
+            c.fill();
+            c.globalAlpha = 0.85;
+            c.strokeStyle = p.colore;
+            c.lineWidth = 2;
+            c.stroke();
+            continue;
+        }
+
         c.fillStyle = p.colore;
 
         c.globalAlpha = 0.35;
@@ -850,6 +1130,28 @@ function risolviImpatto(attaccante, difensore) {
         danno *= 1.3;
     }
 
+    // --- passive che cambiano il colpo in partenza ---
+    // Ultimo Raggio (Ayo): sotto il 40% di vita colpisce più forte
+    if (idVerdellinese(attaccante) === 'AyoAdebayo' &&
+        attaccante.health < attaccante.statistiche.vita * 0.4) {
+        danno *= 1.15;
+    }
+    // Istinto (Zuri): colpire subito dopo un attacco mancato dall'altro
+    if (idVerdellinese(attaccante) === 'ZuriNkosi' && (difensore.haMancatoTimer || 0) > 0) {
+        danno *= 1.5;
+    }
+    // In Tempo (Amara): finestra aperta da una parata riuscita
+    if (idVerdellinese(attaccante) === 'AmaraDiallo' && (attaccante.inTempoFinestra || 0) > 0) {
+        danno *= 1.25;
+        attaccante.inTempoFinestra = 0;
+    }
+
+    // Pelle Dura (Chidi): i colpi leggeri si spengono su di lui
+    if (idVerdellinese(difensore) === 'ChidiOkonkwo' && danno <= 6) {
+        particelleDiImpulso(difensore, '#8be9fd', 4, 3, 'pelle-dura', 0.8);
+        return;
+    }
+
     if (difensore.isParata) {
         // L'ultimate rompe la parata e apre la scena del verdellinese; il danno
         // e lo stato arrivano alla fine della scena (vedi aggiornaCutscene).
@@ -894,8 +1196,22 @@ function risolviImpatto(attaccante, difensore) {
                 scuoti(effetti, 6);
             }
 
+            // Scarto (Kwame) e In Tempo (Amara): due modi diversi di usare la
+            // parata riuscita. Lo scarto è uscita, la finestra è punizione.
+            applicaScarto(difensore, attaccante);
+            if (difensore.inTempoArmato) {
+                difensore.inTempoFinestra = FINESTRA_IN_TEMPO;
+                difensore.inTempoArmato = false;
+            }
+
             mostraAvviso('PERFECT BLOCK', '#ffd34d');
             return;
+        }
+
+        applicaScarto(difensore, attaccante);
+        if (difensore.inTempoArmato) {
+            difensore.inTempoFinestra = FINESTRA_IN_TEMPO;
+            difensore.inTempoArmato = false;
         }
 
         // Blocco normale: nessun danno, e i due si separano un poco
@@ -912,6 +1228,16 @@ function risolviImpatto(attaccante, difensore) {
 
     if (attaccante.attaccoUltimate) {
         applicaEffettoUltimate(attaccante, difensore);
+    }
+
+    // Istinto (Zuri) si appoggia a questo: chi ha appena mancato un colpo è
+    // scoperto per un attimo.
+    attaccante.haMancatoTimer = 0;
+
+    // Mani Callose (Ousmane): colpire gli restituisce fiato. È il suo modo di
+    // stare in partita venti secondi di fila senza mai finire la stamina.
+    if (idVerdellinese(attaccante) === 'OusmaneDiouf' && !attaccante.attaccoUltimate) {
+        attaccante.stamina = Math.min(attaccante.statistiche.stamina, attaccante.stamina + 3);
     }
 
     // Colpo caricato andato a segno: stunna. Senza questo lo stun esisteva solo
@@ -1093,6 +1419,12 @@ function iniziaCarica(lottatore) {
  * cancellazione (attacco interrotto da un altro attacco o da un salto).
  */
 function chiudiAttaccoInCorso(lottatore) {
+    // Un attacco che si chiude senza aver fatto centro lascia scoperto chi lo
+    // ha tirato: è la finestra che Zuri (Istinto) sa punire.
+    if (lottatore.isAttacking && !lottatore.attaccoHaColpito && !lottatore.attaccoUltimate) {
+        lottatore.haMancatoTimer = 60;
+    }
+
     lottatore.isAttacking = false;
     lottatore.attaccoCaricato = false;
     lottatore.attaccoUltimate = false;
@@ -1732,6 +2064,14 @@ function versoAvversario(lottatore) {
  */
 function spingiIndietro(attaccante, difensore, forza) {
     const verso = (difensore.position.x >= attaccante.position.x) ? 1 : -1;
+
+    // Piantarsi (Ousmane): radicato a terra non lo sposta nessuno.
+    if ((difensore.radicato || 0) > 0) {
+        difensore.spinta = 0;
+        attaccante.spinta = -verso * (forza / 3);
+        return;
+    }
+
     difensore.spinta = verso * forza;
     attaccante.spinta = -verso * (forza / 3);
 }
@@ -1833,6 +2173,9 @@ function eseguiAzione(azione, lottatore, tenuto = true) {
 
         case 'distanza':
             return tenuto ? attaccoDistanza(lottatore) : false;
+
+        case 'tattica':
+            return tenuto ? usaTattica(lottatore) : false;
 
         default:
             return false;

@@ -47,6 +47,14 @@ const VERDELLINESI = [
     {
         id: 'OusmaneDiouf',
         // Attacco a distanza: il modo per continuare dopo la combo.
+        passiva: {
+            nome: "Mani Callose",
+            descrizione: "ogni colpo normale a segno restituisce 3 di stamina: colpisce piano ma non finisce mai il fiato"
+        },
+        tattica: {
+            nome: "Piantarsi", costo: 25, tipo: 'radicarsi', durata: 40, ricarica: 150,
+            descrizione: "ti radichi: non vieni spinto né spostato"
+        },
         distanza: {
             nome: "Seme del Baobab", velocita: 7, colore: '#8ab4ff', danno: 12, raggio: 20,
             nota: 'lento ma sicuro'
@@ -73,6 +81,14 @@ const VERDELLINESI = [
     {
         id: 'KwameMensah',
         // Attacco a distanza: il modo per continuare dopo la combo.
+        passiva: {
+            nome: "Passo Leggero",
+            descrizione: "atterrando non perdi stamina: saltare è un modo di muoversi, non un costo"
+        },
+        tattica: {
+            nome: "Scarto", costo: 15, tipo: 'scarto', durata: 60, ricarica: 150,
+            descrizione: "durante una parata riuscita scivoli indietro di 60 px"
+        },
         distanza: {
             nome: "Lame di Vento", velocita: 13, colore: '#d29bff', danno: 12, raggio: 20,
             nota: 'il più rapido'
@@ -99,6 +115,14 @@ const VERDELLINESI = [
     {
         id: 'ChidiOkonkwo',
         // Attacco a distanza: il modo per continuare dopo la combo.
+        passiva: {
+            nome: "Pelle Dura",
+            descrizione: "ignora i colpi che fanno 6 o meno: contro di lui bisogna colpire pesante"
+        },
+        tattica: {
+            nome: "Ruggito", costo: 30, tipo: 'ruggito', durata: 120, ricarica: 180,
+            descrizione: "un urto che spinge l'avversario indietro di 120 px senza fargli danno"
+        },
         distanza: {
             nome: "Onda d'Urto", velocita: 6, colore: '#8be9fd', danno: 12, raggio: 26,
             nota: 'grosso, raggio 26'
@@ -125,6 +149,14 @@ const VERDELLINESI = [
     {
         id: 'AmaraDiallo',
         // Attacco a distanza: il modo per continuare dopo la combo.
+        passiva: {
+            nome: "Contraccolpo",
+            descrizione: "ogni colpo che subisce le dà 2 di ultimate: il dolore è la sua carica"
+        },
+        tattica: {
+            nome: "In Tempo", costo: 20, tipo: 'inTempo', durata: 6, ricarica: 150,
+            descrizione: "colpire entro 6 passi da una parata riuscita fa il 25% in più"
+        },
         distanza: {
             nome: "Passo Doppio", velocita: 10, colore: '#7dff7d', danno: 12, raggio: 12,
             nota: 'piccolo, difficile da vedere'
@@ -151,6 +183,14 @@ const VERDELLINESI = [
     {
         id: 'TarisaiMoyo',
         // Attacco a distanza: il modo per continuare dopo la combo.
+        passiva: {
+            nome: "Radici Profonde",
+            descrizione: "la stamina si rigenera da sola, un quarto più in fretta degli altri"
+        },
+        tattica: {
+            nome: "Cerchio", costo: 25, tipo: 'cerchio', durata: 120, ricarica: 150,
+            descrizione: "lascia a terra un cerchio: chi ci entra è rallentato"
+        },
         distanza: {
             nome: "Polline", velocita: 9, colore: '#a8e05f', danno: 12, raggio: 20,
             nota: 'applica veleno'
@@ -177,6 +217,14 @@ const VERDELLINESI = [
     {
         id: 'ZuriNkosi',
         // Attacco a distanza: il modo per continuare dopo la combo.
+        passiva: {
+            nome: "Istinto",
+            descrizione: "colpire entro 10 passi da un attacco mancato dall'avversario fa il 50% in più"
+        },
+        tattica: {
+            nome: "Freccia Corta", costo: 18, tipo: 'frecciaCorta', durata: 110, ricarica: 110,
+            descrizione: "freccia che non fa danno: se colpisce ti teletrasporta dietro, se viene parata stunna"
+        },
         distanza: {
             nome: "Freccia del Ritorno", velocita: 11, colore: '#ff6b6b', danno: 12, raggio: 20,
             nota: 'speciale: teletrasporto e stun se parata'
@@ -203,6 +251,14 @@ const VERDELLINESI = [
     {
         id: 'BakariTraore',
         // Attacco a distanza: il modo per continuare dopo la combo.
+        passiva: {
+            nome: "Polvere da Sparo",
+            descrizione: "i proiettili costano il 30% in meno"
+        },
+        tattica: {
+            nome: "Puntamento", costo: 20, tipo: 'puntamento', durata: 30, ricarica: 150,
+            descrizione: "restando fermo 30 passi il prossimo proiettile è più veloce e più grosso"
+        },
         distanza: {
             nome: "Stella Cadente", velocita: 10, colore: '#ff8a3d', danno: 14, raggio: 20,
             nota: 'danno più alto'
@@ -229,6 +285,14 @@ const VERDELLINESI = [
     {
         id: 'SekouCamara',
         // Attacco a distanza: il modo per continuare dopo la combo.
+        passiva: {
+            nome: "Voce degli Antenati",
+            descrizione: "non subisce silenzio né inversione: nessuno gli spegne le abilità"
+        },
+        tattica: {
+            nome: "Sentenza", costo: 22, tipo: 'sentenza', durata: 120, ricarica: 160,
+            descrizione: "applica silenzio, ma solo se l'avversario è stordito"
+        },
         distanza: {
             nome: "Sguardo degli Antenati", velocita: 8, colore: '#b06aff', danno: 12, raggio: 20,
             nota: 'applica silenzio'
@@ -255,6 +319,14 @@ const VERDELLINESI = [
     {
         id: 'AyoAdebayo',
         // Attacco a distanza: il modo per continuare dopo la combo.
+        passiva: {
+            nome: "Ultimo Raggio",
+            descrizione: "sotto il 40% di vita i suoi colpi fanno il 15% in più: non è mai finito"
+        },
+        tattica: {
+            nome: "Eclissi Minore", costo: 30, tipo: 'eclissiMinore', durata: 60, ricarica: 170,
+            descrizione: "spegne la vista all'avversario"
+        },
         distanza: {
             nome: "Raggio d'Eclissi", velocita: 12, colore: '#d29bff', danno: 14, raggio: 20,
             nota: 'applica eclissi'

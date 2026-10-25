@@ -154,6 +154,17 @@ class Lottatore extends Sprite {
         this.intangibileAttesa = false;  // la combo è finita: l'intangibilità parte all'atterraggio
         this.ricaricaDistanza = 0;       // frame prima di poter riscoccare l'attacco a distanza
 
+        // --- Tattiche e passive dei verdellinesi ---
+        this.ricaricaTattica = 0;        // frame prima di poter riusare la tattica
+        this.radicato = 0;               // "Piantarsi": non si viene spinti
+        this.scartoArmato = false;       // "Scarto": la prossima parata riuscita fa scivolare via
+        this.inTempoArmato = false;      // "In Tempo": arma il colpo potenziato dopo la parata
+        this.inTempoFinestra = 0;        // quanti passi restano per usare il colpo potenziato
+        this.puntamento = 0;             // "Puntamento": passi di immobilità accumulati
+        this.puntamentoPronto = false;   // il prossimo proiettile è potenziato
+        this.haMancatoTimer = 0;         // passi da quando questo lottatore ha mancato un colpo
+        this.recuperoTattica = 0;        // passi di recupero dopo un teletrasporto
+
         // --- Stati alterati dalle ultimate ---
         this.rallentamentoTimer = 0;     // movimento e animazioni rallentati
         this.inversioneTimer = 0;        // comandi invertiti
