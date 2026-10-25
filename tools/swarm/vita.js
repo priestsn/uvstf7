@@ -286,10 +286,18 @@ async function partitaFra(url, primo, secondo, portaBase, cartella, scriviEvento
                         contesto: { prima: prima, dopo: dopo, esito: esito.esito }, decimi: 0
                     });
                 } else if (delta === 0) {
+                    // Zero punti NON è più il tetto giornaliero: quello è stato
+                    // tolto. Adesso lo zero arriva dall'incontro fra due account
+                    // che è lo STESSO incontro visto dai due lati (host e ospite
+                    // legati dal codice stanza): si paga una volta sola, e chi
+                    // chiude per secondo prende zero. Prima questa nota diceva
+                    // "probabilmente il tetto giornaliero" e faceva sospettare un
+                    // difetto che non c'era (7 casi su 630 in una corsa).
                     scriviEvento({
-                        tipo: 'nota', bot: chi.numero, partita: chi.partite, firma: 'punti-non-accreditati-tetto',
+                        tipo: 'nota', bot: chi.numero, partita: chi.partite, firma: 'punti-gia-pagati',
                         gravita: 'nessuna',
-                        messaggio: 'La partita non ha dato punti: probabilmente il tetto giornaliero',
+                        messaggio: 'Zero punti: questo incontro era già stato pagato all\'altro lato ' +
+                            '(stessa stanza). Non è un difetto.',
                         contesto: null, decimi: 0
                     });
                 }
