@@ -31,7 +31,11 @@ function argomenti(elenco) {
     const scelte = {
         bot: 3, minuti: 5, partite: 3, jev: false, jevOgni: 12,
         maxChiamate: 300, porta: 8300, uscita: path.join(RADICE, 'bug_reports'),
-        giro: false, ripetizioni: 2, account: false, online: false, vite: false
+        giro: false, ripetizioni: 2, account: false, online: false, vite: false,
+        // --url <indirizzo>: i bot giocano su un server GIA' acceso, invece di
+        // aprirne uno qui. Serve per puntare la corsa alla VPS, dove giocano
+        // anche i giocatori veri: stessa classifica, stessa coda, stesso mondo.
+        urlEsterno: null
     };
 
     for (let indice = 0; indice < elenco.length; indice++) {
@@ -44,6 +48,7 @@ function argomenti(elenco) {
         else if (voce === '--jev-ogni') scelte.jevOgni = Number(prossimo());
         else if (voce === '--max-chiamate') scelte.maxChiamate = Number(prossimo());
         else if (voce === '--porta') scelte.porta = Number(prossimo());
+        else if (voce === '--url') scelte.urlEsterno = prossimo();
         else if (voce === '--uscita') scelte.uscita = path.resolve(prossimo());
         else if (voce === '--giro') scelte.giro = true;
         else if (voce === '--ripetizioni') scelte.ripetizioni = Number(prossimo());
@@ -146,7 +151,14 @@ async function main() {
     console.log('Cartella: ' + cartella);
     console.log('');
 
-    const server = await avviaServerDiProva(scelte.porta, { conserva: !!scelte.vite });
+    // Con --url il server non si apre: si gioca su quello indicato.
+    const server = scelte.urlEsterno
+        ? { url: scelte.urlEsterno.replace(/\/$/, ''), locale: false }
+        : await avviaServerDiProva(scelte.porta, { conserva: !!scelte.vite });
+    if (scelte.urlEsterno) {
+        console.log('Server in uso: ' + server.url + ' (esterno, non aperto da questa corsa)');
+        console.log('');
+    }
     let esiti = [];
 
     try {
@@ -293,7 +305,7 @@ async function main() {
         });
         }
     } finally {
-        fermaServerDiProva(server);
+        if (server.locale !== false) fermaServerDiProva(server);
         gettone.end();
     }
 

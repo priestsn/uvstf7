@@ -6,7 +6,7 @@
 // (è successo davvero: sfondo piccolo in alto a sinistra e selezione tagliata).
 // Qui si chiede versione.json SENZA cache: se il build del server è più recente
 // di quello compilato in questo file, la pagina si ricarica da sola una volta.
-const BUILD_PAGINA = 16;
+const BUILD_PAGINA = 17;
 
 (function controlloVersione() {
     if (typeof fetch !== 'function') {
@@ -296,6 +296,31 @@ function aggiornaMeccaniche(lottatore) {
     // Ultimate: si carica col tempo
     lottatore.ultimate = Math.min(100, lottatore.ultimate + ULTIMATE_CARICA_FRAME);
 
+    // --- Combo universale: sospensione, intangibilità, ricarica del tiro ---
+    if (lottatore.sospeso > 0) {
+        lottatore.sospeso = comboAggiornaTimer(lottatore.sospeso);
+    }
+    if (lottatore.ricaricaDistanza > 0) {
+        lottatore.ricaricaDistanza = comboAggiornaTimer(lottatore.ricaricaDistanza);
+    }
+    if (lottatore.intangibile > 0) {
+        lottatore.intangibile = comboAggiornaTimer(lottatore.intangibile);
+    } else if (lottatore.combo && !lottatore.intangibileAttesa && lottatore.velocity.y >= 0 &&
+        lottatore.position.y + lottatore.height >= ground - 1) {
+        // è atterrato prima di chiudere i tre colpi: la combo è finita lì e non
+        // c'è intangibilità, perché non ha subito la combo intera
+        lottatore.combo = null;
+        lottatore.sospeso = 0;
+    } else if (lottatore.intangibileAttesa && lottatore.velocity.y >= 0 &&
+        lottatore.position.y + lottatore.height >= ground - 1) {
+        // È atterrato: da qui parte l'intangibilità, non prima. Così il tiro a
+        // distanza che continua la combo può ancora colpirlo in volo.
+        lottatore.intangibile = COMBO.INTANGIBILE_FRAMI;
+        lottatore.intangibileAttesa = false;
+        lottatore.combo = null;
+        particelleDiImpulso(lottatore, '#ffffff', 10, 5, 'intangibile', 1.2);
+    }
+
     // Stun: conta alla rovescia e libera il lottatore
     if (lottatore.isStunned) {
         lottatore.stunTimer--;
@@ -509,6 +534,118 @@ function applicaEffettoUltimate(attaccante, difensore) {
 /**
  * Crea il proiettile di un'ultimate a distanza
  */
+/**
+ * Primo colpo della combo: l'avversario stunnato sale e avanza.
+ *
+ * applicaDanno viene chiamata PRIMA di sistemare posizione e spinta, perché
+ * anche lei chiama spingiIndietro: se si mettesse la spinta prima, il colpo
+ * normale la sovrascriverebbe e l'avversario tornerebbe a terra subito.
+ */
+function apriCombo(attaccante, difensore, dannoBase) {
+    const verso = difensore.position.x >= attaccante.position.x ? 1 : -1;
+    const punto = puntoImpatto(difensore);
+
+    difensore.combo = comboInizia();
+    const esito = comboDanno(dannoBase, difensore.combo, difensore.statistiche.vita);
+    difensore.combo = esito.combo;
+    applicaDanno(attaccante, difensore, esito.danno, false);
+
+    // lo stun finisce: da qui in poi il bersaglio è in combo, non stordito
+    difensore.isStunned = false;
+    difensore.stunTimer = 0;
+    difensore.isParata = false;
+
+    // in alto e in avanti, di poco: si resta a contatto
+    difensore.position.y = Math.max(0, difensore.position.y - COMBO.SOLLEVAMENTO);
+    difensore.position.x = Math.max(0, Math.min(canvas.width - difensore.width,
+        difensore.position.x + verso * COMBO.AVANTI));
+    difensore.velocity.y = -2;
+    difensore.sospeso = COMBO.SOSPENSIONE_FRAMI;
+    difensore.spinta = verso * 3;
+
+    aggiungiOnda(effetti, punto.x, punto.y, '#ffffff', 90, 6);
+    particelleDiImpulso(difensore, coloreEffetti(attaccante), 14, 6, 'combo', 1.7);
+    if (!MOVIMENTO_RIDOTTO) scuoti(effetti, 3);
+}
+
+/**
+ * Secondo e terzo colpo, in aria. Il terzo spedisce lontano e chiude la combo:
+ * dopo si può continuare solo con un attacco a distanza.
+ */
+function colpoInAria(attaccante, difensore, dannoBase) {
+    const verso = difensore.position.x >= attaccante.position.x ? 1 : -1;
+    const prossimo = (difensore.combo ? difensore.combo.colpi : 1) + 1;
+
+    const esito = comboDanno(dannoBase,
+        { colpi: prossimo, inflitto: difensore.combo ? difensore.combo.inflitto : 0 },
+        difensore.statistiche.vita);
+    difensore.combo = esito.combo;
+    applicaDanno(attaccante, difensore, esito.danno, false);
+
+    if (comboColpoFinale(difensore.combo)) {
+        // terzo colpo: via, lontano da chi lo ha colpito
+        difensore.sospeso = 0;
+        difensore.velocity.y = -7;
+        difensore.spinta = verso * 42;   // ~150 px di volo prima di fermarsi
+        difensore.intangibileAttesa = true;
+        particelleDiImpulso(difensore, coloreEffetti(attaccante), 22, 8, 'finale', 2.2);
+        aggiungiOnda(effetti, puntoImpatto(difensore).x, puntoImpatto(difensore).y, '#ffffff', 150, 10);
+        if (!MOVIMENTO_RIDOTTO) scuoti(effetti, 5);
+        return;
+    }
+
+    // secondo colpo: resta sospeso, un altro po' più in alto
+    difensore.sospeso = COMBO.SOSPENSIONE_FRAMI;
+    difensore.velocity.y = -3;
+    difensore.position.y = Math.max(0, difensore.position.y - 18);
+    difensore.position.x = Math.max(0, Math.min(canvas.width - difensore.width,
+        difensore.position.x + verso * 14));
+    particelleDiImpulso(difensore, coloreEffetti(attaccante), 12, 5, 'combo', 1.5);
+}
+
+/**
+ * L'attacco a distanza: il modo per continuare dopo la combo.
+ *
+ * Costa stamina e ha una ricarica, così non sostituisce la mischia: serve a
+ * chiudere, non a sparare da lontano tutto il tempo. Il danno sta nel dato del
+ * verdellinese (dati/Verdellinesi), non qui.
+ */
+function attaccoDistanza(lottatore) {
+    if (!lottatore || lottatore.isDead || gameOver) return false;
+    if (lottatore.isStunned || lottatore.congelamentoTimer > 0) return false;
+    if (lottatore.ricaricaDistanza > 0) return false;
+    if (lottatore.silenzioTimer > 0) return false;
+
+    const dati = lottatore.personaggio && lottatore.personaggio.distanza;
+    if (!dati) return false;
+
+    const costo = COMBO.DISTANZA.stamina;
+    if (lottatore.stamina < costo) {
+        lampeggiaStamina(lottatore);
+        return false;
+    }
+
+    lottatore.stamina -= costo;
+    lottatore.ricaricaDistanza = COMBO.DISTANZA.ricarica;
+
+    const direzione = lottatore.facing >= 0 ? 1 : -1;
+    proiettili.push({
+        proprietario: lottatore,
+        x: lottatore.position.x + lottatore.centroCorpo + direzione * (lottatore.width / 2 + 26),
+        y: lottatore.position.y + lottatore.height * 0.45,
+        vx: direzione * dati.velocita,
+        raggio: dati.raggio || 20,
+        danno: dati.danno || COMBO.DISTANZA.danno,
+        colore: dati.colore || '#ff8a3d',
+        vita: 240,
+        // un tiro non è una ultimate: non applica lo stato dell'ultimate
+        daDistanza: true
+    });
+
+    particelleDiImpulso(lottatore, dati.colore || '#ff8a3d', 6, 3, 'tiro', 1.1);
+    return true;
+}
+
 function creaProiettile(lottatore) {
     const dati = lottatore.datiUltimate;
     const direzione = lottatore.facing >= 0 ? 1 : -1;
@@ -549,8 +686,21 @@ function aggiornaProiettili() {
             p.y - p.raggio < difensore.position.y + difensore.height;
 
         if (colpisce) {
+            // Chi è intangibile non è colpibile da niente, nemmeno da un tiro
+            if (difensore.intangibile > 0) {
+                proiettili.splice(i, 1);
+                continue;
+            }
+
             // L'ultimate rompe la parata
             difensore.isParata = false;
+
+            // Il tiro è il modo per continuare dopo la combo: se il bersaglio è
+            // ancora per aria lo tiene su qualche passo in più.
+            if (p.daDistanza && difensore.sospeso > 0) {
+                difensore.sospeso = Math.max(difensore.sospeso, COMBO.DISTANZA.sospensione);
+                difensore.velocity.y = Math.min(difensore.velocity.y, -1);
+            }
 
             let danno = p.danno;
             if (difensore.marchioTimer > 0) {
@@ -560,7 +710,11 @@ function aggiornaProiettili() {
             particelleDiImpulso(difensore, p.colore, 22, 7, 'proiettile');
             aggiungiOnda(effetti, p.x, p.y, p.colore, 130, 9);
             applicaDanno(p.proprietario, difensore, danno, true);
-            applicaEffettoUltimate(p.proprietario, difensore);
+            // Solo la ultimate del verdellinese applica il suo stato: un tiro
+            // normale non deve regalare congelamenti e veleni.
+            if (!p.daDistanza) {
+                applicaEffettoUltimate(p.proprietario, difensore);
+            }
             proiettili.splice(i, 1);
             continue;
         }
@@ -663,9 +817,33 @@ function risolviImpatto(attaccante, difensore) {
         return;
     }
 
+    // Chi ha appena subito la combo è intangibile: i colpi passano senza danno.
+    if (difensore.intangibile > 0) {
+        particelleDiImpulso(difensore, '#ffffff', 4, 3, 'intangibile', 0.9);
+        return;
+    }
+
     let danno = attaccante.attaccoUltimate
         ? attaccante.datiUltimate.danno
         : attaccante.statistiche.danno;
+
+    // --- combo universale, prima di ogni altra regola ---
+    // Un colpo su chi è stunnato apre la combo; un colpo su chi è già in aria
+    // la continua fino al terzo. La ultimate segue la sua strada.
+    if (!attaccante.attaccoUltimate) {
+        if (difensore.isStunned && !difensore.combo) {
+            apriCombo(attaccante, difensore, danno);
+            return;
+        }
+        // Basta che sia per aria: il timer di sospensione è un aiuto alla
+        // fisica, non la finestra della combo. Con la sola sospensione il terzo
+        // colpo arrivava sempre a finestra chiusa e la combo si fermava a due.
+        const inAria = difensore.position.y + difensore.height < ground - 2;
+        if (comboPuoContinuare(difensore.combo) && (difensore.sospeso > 0 || inAria)) {
+            colpoInAria(attaccante, difensore, danno);
+            return;
+        }
+    }
 
     // Marchio: il difensore subisce più danno
     if (difensore.marchioTimer > 0) {
@@ -734,6 +912,13 @@ function risolviImpatto(attaccante, difensore) {
 
     if (attaccante.attaccoUltimate) {
         applicaEffettoUltimate(attaccante, difensore);
+    }
+
+    // Colpo caricato andato a segno: stunna. Senza questo lo stun esisteva solo
+    // quando il caricato veniva PARATO, e la combo era quasi irraggiungibile:
+    // tre porte d'ingresso sono meglio di una.
+    if (attaccante.attaccoCaricato && !difensore.isDead) {
+        stunna(difensore);
     }
 }
 
@@ -1645,6 +1830,9 @@ function eseguiAzione(azione, lottatore, tenuto = true) {
 
         case 'ultimate':
             return tenuto ? attivaUltimate(lottatore) : false;
+
+        case 'distanza':
+            return tenuto ? attaccoDistanza(lottatore) : false;
 
         default:
             return false;

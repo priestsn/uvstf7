@@ -38,6 +38,12 @@ class Sprite {
             // hitbox invece di risultare spostato di mezza larghezza.
             c.translate(this.position.x + this.centroCorpo, this.position.y);
             c.scale(this.facing, 1); // Ribalta orizzontalmente se facing = -1
+
+            // Chi ha appena subito la combo lampeggia bianco: è il segnale che
+            // per un paio di secondi i colpi non lo toccano.
+            if (typeof COMBO !== 'undefined' && comboLampeggia(this.intangibile)) {
+                c.filter = 'brightness(3.2) saturate(0)';
+            }
             c.drawImage(
                 this.image,
                 this.framesCurrent * (this.image.width / this.framesMax),
@@ -49,6 +55,7 @@ class Sprite {
                 (this.image.width / this.framesMax) * this.scale,
                 this.image.height * this.scale
             );
+            c.filter = 'none';
             c.restore();
         }
     }
@@ -139,6 +146,13 @@ class Lottatore extends Sprite {
         this.framesAttacco = 0;          // frame dall'inizio dell'attacco
         this.isCaricando = false;        // tasto attacco tenuto premuto
         this.framesCarica = 0;           // frame di carica accumulati
+
+        // --- La combo universale (js/Combo.js) ---
+        this.combo = null;               // {colpi, inflitto} quando si è in combo
+        this.sospeso = 0;                // frame di sospensione in aria fra un colpo e l'altro
+        this.intangibile = 0;            // frame di intangibilità dopo aver subito la combo
+        this.intangibileAttesa = false;  // la combo è finita: l'intangibilità parte all'atterraggio
+        this.ricaricaDistanza = 0;       // frame prima di poter riscoccare l'attacco a distanza
 
         // --- Stati alterati dalle ultimate ---
         this.rallentamentoTimer = 0;     // movimento e animazioni rallentati
@@ -302,11 +316,16 @@ class Lottatore extends Sprite {
         // Ground - altezza è l'esatta posizione di riposo, quindi atterrare è deterministico.
         this.position.y = Math.max(0, Math.min(ground - this.height, this.position.y));
 
-        // Applica gravità: si azzera quando i piedi raggiungono il suolo
+        // Applica gravità: si azzera quando i piedi raggiungono il suolo.
+        // In combo il bersaglio resta sospeso: la gravità pesa poco, così i tre
+        // colpi entrano uno dopo l'altro invece di cadere subito.
+        const gravitaOra = (typeof COMBO !== 'undefined' && this.sospeso > 0)
+            ? gravity * COMBO.GRAVITA_SOSPESA
+            : gravity;
         if (this.position.y + this.height + this.velocity.y >= ground) {
             this.velocity.y = 0;
         } else {
-            this.velocity.y += gravity;
+            this.velocity.y += gravitaOra;
         }
     }
 

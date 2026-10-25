@@ -46,6 +46,11 @@ const ATTACCO_FRAME = 30;
 const VERDELLINESI = [
     {
         id: 'OusmaneDiouf',
+        // Attacco a distanza: il modo per continuare dopo la combo.
+        distanza: {
+            nome: "Seme del Baobab", velocita: 7, colore: '#8ab4ff', danno: 12, raggio: 20,
+            nota: 'lento ma sicuro'
+        },
         nome: 'Ousmane Diouf',
         archetipo: 'Cavaliere',
         ultimate: {
@@ -67,6 +72,11 @@ const VERDELLINESI = [
     },
     {
         id: 'KwameMensah',
+        // Attacco a distanza: il modo per continuare dopo la combo.
+        distanza: {
+            nome: "Lame di Vento", velocita: 13, colore: '#d29bff', danno: 12, raggio: 20,
+            nota: 'il più rapido'
+        },
         nome: 'Kwame Mensah',
         archetipo: 'Cavaliere agile',
         ultimate: {
@@ -88,6 +98,11 @@ const VERDELLINESI = [
     },
     {
         id: 'ChidiOkonkwo',
+        // Attacco a distanza: il modo per continuare dopo la combo.
+        distanza: {
+            nome: "Onda d'Urto", velocita: 6, colore: '#8be9fd', danno: 12, raggio: 26,
+            nota: 'grosso, raggio 26'
+        },
         nome: 'Chidi Okonkwo',
         ultimate: {
             nome: 'Ruggito del Leone', tipo: 'mischia', danno: 24,
@@ -109,6 +124,11 @@ const VERDELLINESI = [
     },
     {
         id: 'AmaraDiallo',
+        // Attacco a distanza: il modo per continuare dopo la combo.
+        distanza: {
+            nome: "Passo Doppio", velocita: 10, colore: '#7dff7d', danno: 12, raggio: 12,
+            nota: 'piccolo, difficile da vedere'
+        },
         nome: 'Amara Diallo',
         archetipo: 'Lottatore veloce',
         ultimate: {
@@ -130,6 +150,11 @@ const VERDELLINESI = [
     },
     {
         id: 'TarisaiMoyo',
+        // Attacco a distanza: il modo per continuare dopo la combo.
+        distanza: {
+            nome: "Polline", velocita: 9, colore: '#a8e05f', danno: 12, raggio: 20,
+            nota: 'applica veleno'
+        },
         nome: 'Tarisai Moyo',
         archetipo: 'Tecnico',
         ultimate: {
@@ -151,6 +176,11 @@ const VERDELLINESI = [
     },
     {
         id: 'ZuriNkosi',
+        // Attacco a distanza: il modo per continuare dopo la combo.
+        distanza: {
+            nome: "Freccia del Ritorno", velocita: 11, colore: '#ff6b6b', danno: 12, raggio: 20,
+            nota: 'speciale: teletrasporto e stun se parata'
+        },
         nome: 'Zuri Nkosi',
         ultimate: {
             nome: 'Freccia della Savana', tipo: 'mischia', danno: 18,
@@ -172,6 +202,11 @@ const VERDELLINESI = [
     },
     {
         id: 'BakariTraore',
+        // Attacco a distanza: il modo per continuare dopo la combo.
+        distanza: {
+            nome: "Stella Cadente", velocita: 10, colore: '#ff8a3d', danno: 14, raggio: 20,
+            nota: 'danno più alto'
+        },
         nome: 'Bakari Traore',
         archetipo: 'Mago',
         ultimate: {
@@ -193,6 +228,11 @@ const VERDELLINESI = [
     },
     {
         id: 'SekouCamara',
+        // Attacco a distanza: il modo per continuare dopo la combo.
+        distanza: {
+            nome: "Sguardo degli Antenati", velocita: 8, colore: '#b06aff', danno: 12, raggio: 20,
+            nota: 'applica silenzio'
+        },
         nome: 'Sekou Camara',
         archetipo: 'Mago anziano',
         ultimate: {
@@ -214,6 +254,11 @@ const VERDELLINESI = [
     },
     {
         id: 'AyoAdebayo',
+        // Attacco a distanza: il modo per continuare dopo la combo.
+        distanza: {
+            nome: "Raggio d'Eclissi", velocita: 12, colore: '#d29bff', danno: 14, raggio: 20,
+            nota: 'applica eclissi'
+        },
         nome: 'Ayo Adebayo',
         ultimate: {
             nome: 'Eclissi Arcana', tipo: 'proiettile', danno: 26,

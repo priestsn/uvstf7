@@ -17,13 +17,14 @@ const AZIONI_TASTIERA = [
     { id: 'salto', nome: 'Salto' },
     { id: 'attacco', nome: 'Attacco' },
     { id: 'parata', nome: 'Parata' },
-    { id: 'ultimate', nome: 'Ultimate' }
-];
+    { id: 'ultimate', nome: 'Ultimate' },
+        { id: 'distanza', nome: 'Attacco a distanza' }
+    ];
 
 // Tasti di partenza: quelli usati prima dell'introduzione dei keybinds
 const TASTI_PREDEFINITI = {
-    p1: { sinistra: 'a', destra: 'd', salto: 'w', attacco: 'h', parata: 'j', ultimate: 'g' },
-    p2: { sinistra: 'ArrowLeft', destra: 'ArrowRight', salto: 'ArrowUp', attacco: 'ù', parata: 'à', ultimate: 'l' }
+    p1: { sinistra: 'a', destra: 'd', salto: 'w', attacco: 'h', parata: 'j', ultimate: 'g', distanza: 'k' },
+    p2: { sinistra: 'ArrowLeft', destra: 'ArrowRight', salto: 'ArrowUp', attacco: 'ù', parata: 'à', ultimate: 'l', distanza: 'ò' }
 };
 
 const NOMI_GIOCATORI = { p1: 'Giocatore 1', p2: 'Giocatore 2' };

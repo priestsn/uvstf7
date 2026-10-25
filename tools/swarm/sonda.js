@@ -107,6 +107,15 @@
                 return isNaN(valore) ? null : valore;
             })(),
             gameOver: finita,
+            // --- meccaniche nuove ---
+            // Senza questi campi la corsa non può dire se le cutscene sono
+            // partite o se qualcuno ha fatto una combo: un difetto delle scene
+            // passerebbe la notte intera senza essere visto.
+            cutscene: (typeof cutsceneAttiva !== 'undefined' && cutsceneAttiva)
+                ? (cutsceneAttiva.copione ? cutsceneAttiva.copione.verdellinese : 'attiva')
+                : null,
+            combo: (typeof Enemy !== 'undefined' && Enemy && Enemy.combo) ? Enemy.combo.colpi : null,
+            intangibile: (typeof Enemy !== 'undefined' && Enemy) ? (Enemy.intangibile || 0) : null,
             p1: p1,
             p2: p2,
             canvas: (function () {
@@ -114,6 +123,28 @@
                 return c ? { larghezza: c.width, altezza: c.height } : null;
             })()
         };
+
+        // --- contatori delle meccaniche nuove ---
+        // Servono a rispondere a una domanda sola: lo sciame le ha davvero
+        // giocate? Un contatore che sale solo alla transizione conta le scene
+        // viste, non i campioni in cui la scena era a schermo.
+        if (campione.cutscene) {
+            if (sw._ultimaCutscene !== campione.cutscene) {
+                sw.cutsceneViste = (sw.cutsceneViste || 0) + 1;
+            }
+        }
+        sw._ultimaCutscene = campione.cutscene;
+
+        if (campione.combo) {
+            sw.comboMassima = Math.max(sw.comboMassima || 0, campione.combo);
+            if (campione.combo >= 3 && sw._ultimaCombo !== 3) {
+                sw.comboComplete = (sw.comboComplete || 0) + 1;
+            }
+        }
+        sw._ultimaCombo = campione.combo;
+        if (campione.intangibile > 0) {
+            sw.intangibilitaVista = true;
+        }
 
         sw.campioni.push(campione);
         if (sw.campioni.length > 400) sw.campioni.shift();

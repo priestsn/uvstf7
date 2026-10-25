@@ -701,7 +701,27 @@ async function corriOnline(opzioni) {
                 try { campione = await nav.valuta('_swarm.campiona()'); } catch (errore) { await attendi(200); continue; }
                 if (!campione) { await attendi(200); continue; }
 
-                if (campione.stato !== 'partita' || campione.gameOver) break;
+                if (campione.stato !== 'partita' || campione.gameOver) {
+                    // Fine partita: si annota quello che le meccaniche nuove
+                    // hanno fatto davvero, non quello che dovrebbero fare.
+                    try {
+                        const visto = await nav.valuta(`JSON.stringify({
+                            cutscene: _swarm.cutsceneViste || 0,
+                            comboComplete: _swarm.comboComplete || 0,
+                            comboMassima: _swarm.comboMassima || 0,
+                            intangibilita: !!_swarm.intangibilitaVista
+                        })`);
+                        const d = JSON.parse(visto);
+                        scelte.scriviEvento({
+                            tipo: 'nota', bot: numero, partita: 1, firma: 'meccaniche-nuove',
+                            gravita: 'nessuna',
+                            messaggio: 'cutscene viste ' + d.cutscene + ', combo complete ' + d.comboComplete +
+                                ', combo massima ' + d.comboMassima + ', intangibilità ' + (d.intangibilita ? 'sì' : 'no'),
+                            contesto: d, decimi: secondo()
+                        });
+                    } catch (e) { /* pagina in transizione */ }
+                    break;
+                }
 
                 // la mia vista, per il confronto con l'altro bot
                 viste[numero] = { quando: Date.now(), p1: campione.p1, p2: campione.p2, timer: campione.timer };
