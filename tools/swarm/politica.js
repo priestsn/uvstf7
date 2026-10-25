@@ -7,17 +7,20 @@
 // gioco avanza di 60 passi al secondo. Il pilota è questo file, il giudice è
 // giudice.js.
 
-const DISTANZA_ATTACCO = 150;      // px: oltre, un attacco è un colpo a vuoto
+const DISTANZA_ATTACCO = 165;      // px: oltre, un attacco è un colpo a vuoto
 const STAMINA_MINIMA_CARICA = 40;  // sotto questa soglia si attacca normale
 const FINESTRA_PARATA = 220;       // px: sotto questa distanza conviene parare
 const PROBABILITA_SALTO = 0.08;
+// Parare è una scelta, non un riflesso: con la parata sempre in testa il bot
+// non attaccava mai e nessuna meccanica nuova veniva provata.
+const PROBABILITA_PARATA = 0.45;
 
 // Le meccaniche nuove vanno provate, non solo scritte. Senza queste azioni lo
 // sciame giocava la build con combo, tattiche e ultimate senza mai usarle:
 // misurate zero cutscene e zero combo in una corsa intera.
 const PROBABILITA_TATTICA = 0.06;   // ogni decisione: un tiro di dado per la tattica
 const PROBABILITA_TIRO = 0.10;      // l'attacco a distanza, quando c'è spazio
-const PROBABILITA_CARICA = 0.18;    // il colpo caricato apre la combo: serve provarlo
+const PROBABILITA_CARICA = 0.30;    // il colpo caricato apre la combo: serve provarlo
 const DISTANZA_TIRO = 420;          // px: oltre questa distanza conviene il tiro
 const SOGLIA_CARICA = 40;           // stamina minima per permettersi una carica
 
@@ -50,7 +53,7 @@ function prossimaAzione(stato, casuale) {
     const distanza = Math.abs(stato.p1.x - stato.p2.x);
     const versoDestra = stato.p2.x > stato.p1.x;
 
-    if (stato.p1.ultimate >= 100 && distanza < FINESTRA_PARATA * 2) return 'ultimate';
+    if (stato.p1.ultimate >= 100 && distanza < 200) return 'ultimate';
 
     // --- le meccaniche nuove ---
     // Chi è per aria si colpisce: è la continuazione della combo.
@@ -72,7 +75,7 @@ function prossimaAzione(stato, casuale) {
     if (distanza > DISTANZA_ATTACCO && distanza < DISTANZA_TIRO && !stato.p1.ricaricaDistanza &&
         dado() < PROBABILITA_TIRO) return 'distanza';
 
-    if (stato.p2.attacco && distanza < FINESTRA_PARATA) return 'parata';
+    if (stato.p2.attacco && distanza < FINESTRA_PARATA && dado() < PROBABILITA_PARATA) return 'parata';
 
     // senza stamina l'attacco non parte: meglio avvicinarsi o parare
     const senzaStamina = (typeof stato.p1.stamina === 'number' && typeof stato.p1.costoStamina === 'number')
@@ -83,7 +86,7 @@ function prossimaAzione(stato, casuale) {
         return 'attacco';
     }
 
-    if (distanza > DISTANZA_ATTACCO * 0.8) return versoDestra ? 'destra' : 'sinistra';
+    if (distanza > DISTANZA_ATTACCO * 0.7) return versoDestra ? 'destra' : 'sinistra';
 
     return dado() < PROBABILITA_SALTO ? 'salto' : null;
 }
