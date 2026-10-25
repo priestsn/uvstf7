@@ -166,7 +166,27 @@ async function gestisciApi(richiesta, risposta) {
                     icona: voce.icona
                 };
             });
-            rispondi(risposta, 200, { punti: giocatore.punti, voci: voci });
+            rispondi(risposta, 200, {
+                punti: giocatore.punti,
+                voci: voci,
+                // Le casse sono l'unico modo di comprare: il client le mostra
+                // al posto delle schede di skin e verdellinesi.
+                casse: (account.negozio().casse || []).map(function (cassa) {
+                    // Cosa può uscire, in parole: il client lo scrive sotto il
+                    // prezzo, così la cassa non è una scatola cieca.
+                    const possibili = (cassa.premi || []).map(function (premio) {
+                        if (premio.tipo === 'personaggio') return 'verdellinesi';
+                        if (premio.skin === 'raro') return 'skin rare';
+                        if (premio.skin === 'ombrosa') return 'skin ombrose';
+                        return 'skin';
+                    });
+                    return {
+                        id: cassa.id, nome: cassa.nome, prezzo: cassa.prezzo,
+                        colore: cassa.colore, descrizione: cassa.descrizione,
+                        premiPossibili: possibili.filter(function (v, i, a) { return a.indexOf(v) === i; })
+                    };
+                })
+            });
             return true;
         }
 
@@ -182,6 +202,15 @@ async function gestisciApi(richiesta, risposta) {
                 personaggi: esito.personaggi,
                 skins: esito.skins || []
             });
+            return true;
+        }
+
+        case 'POST /api/cassa': {
+            const giocatore = giocatoreDaRichiesta(richiesta);
+            if (!giocatore) { rispondi(risposta, 401, { messaggio: MESSAGGIO_SESSIONE }); return true; }
+            const esito = account.apriCassa(magazzino, giocatore, String(corpo.cassa || ''));
+            if (!esito.ok) { rispondi(risposta, esito.stato, { messaggio: esito.messaggio }); return true; }
+            rispondi(risposta, 200, esito);
             return true;
         }
 

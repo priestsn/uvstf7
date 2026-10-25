@@ -1,5 +1,5 @@
 {
-  "versione": 3,
+  "versione": 4,
   "voci": [
     {
       "personaggio": "OusmaneDiouf",
@@ -198,6 +198,72 @@
       "prezzo": 1500,
       "ottenutoAllInizio": false,
       "icona": "assets/Skins/AyoAdebayo-ombrosa/ritratto.png"
+    }
+  ],
+  "casse": [
+    {
+      "id": "comune",
+      "nome": "CASSA COMUNE",
+      "prezzo": 400,
+      "colore": "#8ab4ff",
+      "descrizione": "Una skin dorata o un verdellinese a pagamento, se sei fortunato.",
+      "premi": [
+        {
+          "peso": 70,
+          "tipo": "skin",
+          "skin": "raro"
+        },
+        {
+          "peso": 22,
+          "tipo": "personaggio"
+        },
+        {
+          "peso": 8,
+          "tipo": "skin",
+          "skin": "ombrosa"
+        }
+      ]
+    },
+    {
+      "id": "rara",
+      "nome": "CASSA RARA",
+      "prezzo": 900,
+      "colore": "#c08bff",
+      "descrizione": "Skin ombrose, e un buon terzo delle volte un verdellinese.",
+      "premi": [
+        {
+          "peso": 55,
+          "tipo": "skin",
+          "skin": "ombrosa"
+        },
+        {
+          "peso": 35,
+          "tipo": "personaggio"
+        },
+        {
+          "peso": 10,
+          "tipo": "skin",
+          "skin": "raro"
+        }
+      ]
+    },
+    {
+      "id": "epica",
+      "nome": "CASSA EPICA",
+      "prezzo": 1800,
+      "colore": "#ffd34d",
+      "descrizione": "Due volte su tre esce un verdellinese: è la cassa di chi vuole il roster completo.",
+      "premi": [
+        {
+          "peso": 65,
+          "tipo": "personaggio"
+        },
+        {
+          "peso": 35,
+          "tipo": "skin",
+          "skin": "ombrosa"
+        }
+      ]
     }
   ]
 }

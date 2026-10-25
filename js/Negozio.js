@@ -45,6 +45,7 @@ const CATALOGO_PREDEFINITO = [
 ];
 
 // Catalogo attivo: parte dalla copia di riserva, il server può aggiornarlo.
+let CASSE_NEGOZIO = [];   // le tre casse del negozio, dal server
 let CATALOGO_NEGOZIO = CATALOGO_PREDEFINITO.map((voce) => Object.assign({}, voce));
 
 // ========================================
@@ -132,6 +133,9 @@ async function caricaCatalogo() {
         if (dati && Array.isArray(dati.voci) && dati.voci.length > 0) {
             CATALOGO_NEGOZIO = dati.voci;
         }
+        if (dati && Array.isArray(dati.casse) && dati.casse.length > 0) {
+            CASSE_NEGOZIO = dati.casse;
+        }
         if (dati && typeof dati.punti === 'number') {
             statoAccount.punti = dati.punti;
         }
@@ -179,31 +183,28 @@ function disegnaNegozio(messaggio, tipo) {
 
     avviaParlaNegoziante();
 
-    // ---- verdellinesi in vendita: solo quelli che non hai ancora ----
-    const inVendita = catalogoVerdellinesi();
-    contenitore.appendChild(negozioCrea('div', 'negozio-sezione', 'VERDELLINESI IN VENDITA'));
+    // ---- le tre casse: è l'unico modo di comprare ----
+    // Prima qui c'erano le schede di ogni skin e di ogni verdellinese, ognuna
+    // col suo prezzo. Adesso si compra una cassa e quello che esce lo decide
+    // il server (vedi apriCassa in server/account.js).
+    contenitore.appendChild(negozioCrea('div', 'negozio-sezione', 'CASSE'));
 
-    if (inVendita.length === 0) {
-        contenitore.appendChild(negozioCrea('div', 'negozio-nota',
-            'Hai già tutti i verdellinesi. Le skin rare sono qui sotto.'));
-    } else {
-        const griglia = negozioCrea('div', 'negozio-griglia');
-        for (const voce of inVendita) {
-            griglia.appendChild(schedaVerdellinese(voce));
-        }
-        contenitore.appendChild(griglia);
+    const grigliaCasse = negozioCrea('div', 'negozio-griglia casse');
+    for (const cassa of (CASSE_NEGOZIO || [])) {
+        grigliaCasse.appendChild(schedaCassa(cassa));
     }
+    contenitore.appendChild(grigliaCasse);
 
-    // ---- skin rare: si comprano e si indossano da qui ----
-    const skins = catalogoSkins();
-    if (skins.length > 0) {
-        contenitore.appendChild(negozioCrea('div', 'negozio-sezione', 'SKIN RARE'));
+    // ---- le skin che possiedi: si indossano, non si comprano ----
+    const mie = catalogoSkins().filter((voce) => skinPosseduta(voce));
+    if (mie.length > 0) {
+        contenitore.appendChild(negozioCrea('div', 'negozio-sezione', 'LE TUE SKIN'));
 
-        const grigliaSkins = negozioCrea('div', 'negozio-griglia');
-        for (const voce of skins) {
-            grigliaSkins.appendChild(schedaSkin(voce));
+        const grigliaMie = negozioCrea('div', 'negozio-griglia');
+        for (const voce of mie) {
+            grigliaMie.appendChild(schedaSkin(voce));
         }
-        contenitore.appendChild(grigliaSkins);
+        contenitore.appendChild(grigliaMie);
     }
 
     const riga = negozioCrea('div', 'negozio-stato-riga' + (tipo ? ' ' + tipo : ''), messaggio || '');
@@ -216,6 +217,86 @@ function disegnaNegozio(messaggio, tipo) {
         apriMenu('principale');
     });
     contenitore.appendChild(indietro);
+}
+
+/**
+ * Scheda di una cassa: nome, prezzo, cosa puo uscire, e il bottone per aprirla.
+ * Il bordo prende il colore della rarita, cosi le tre si distinguono a colpo
+ * d'occhio anche senza leggere.
+ */
+function schedaCassa(cassa) {
+    const scheda = negozioCrea('div', 'negozio-scheda cassa');
+    scheda.style.borderColor = cassa.colore || '#7dff9d';
+
+    const titolo = negozioCrea('div', 'negozio-nome', cassa.nome || cassa.id);
+    titolo.style.color = cassa.colore || '#ffffff';
+    scheda.appendChild(titolo);
+
+    scheda.appendChild(negozioCrea('div', 'negozio-ultimate',
+        cassa.descrizione || 'Dentro c e quello che ancora ti manca.'));
+
+    const esiti = cassa.premiPossibili || [];
+    if (esiti.length > 0) {
+        scheda.appendChild(negozioCrea('div', 'negozio-nota', 'Puo uscire: ' + esiti.join(' - ')));
+    }
+
+    scheda.appendChild(negozioCrea('div', 'negozio-prezzo', (cassa.prezzo || 0) + ' punti'));
+
+    const bottone = negozioCrea('button', 'negozio-bottone', 'APRI');
+    if (statoAccount.punti < (cassa.prezzo || 0)) {
+        bottone.classList.add('disabilitato');
+        bottone.title = 'Ti servono ancora ' + ((cassa.prezzo || 0) - statoAccount.punti) + ' punti';
+    }
+    bottone.addEventListener('click', () => apriCassaDalNegozio(cassa.id));
+    scheda.appendChild(bottone);
+
+    return scheda;
+}
+
+/**
+ * Apre una cassa: il risultato lo decide il SERVER. Qui si mostra solo quello
+ * che e tornato indietro, e si ridisegna la vetrina coi punti nuovi.
+ */
+async function apriCassaDalNegozio(idCassa) {
+    const riga = document.querySelector('#negozioMessaggio');
+    if (riga) { riga.textContent = 'Apertura in corso...'; riga.className = 'negozio-stato-riga'; }
+
+    try {
+        const dati = await api.chiama('/api/cassa', {
+            metodo: 'POST',
+            corpo: { cassa: idCassa }
+        });
+
+        if (dati && typeof dati.punti === 'number') statoAccount.punti = dati.punti;
+        if (dati && Array.isArray(dati.personaggi)) statoAccount.personaggi = dati.personaggi;
+        if (dati && Array.isArray(dati.skins)) statoAccount.skins = dati.skins;
+        if (typeof aggiornaProfiloDaServer === 'function' && dati) {
+            aggiornaProfiloDaServer(dati);
+        }
+
+        await caricaCatalogo();
+        const vinto = dati && dati.vinto;
+        const testo = vinto ? ('E uscito: ' + nomePremio(vinto) + '!') : 'Cassa aperta.';
+        disegnaNegozio(testo, 'ok');
+        if (vinto && typeof mostraAvviso === 'function') {
+            mostraAvviso('HAI TROVATO: ' + nomePremio(vinto).toUpperCase(),
+                vinto.skin ? '#c08bff' : '#ffd34d', 120, true);
+        }
+    } catch (errore) {
+        const messaggio = (errore && errore.messaggio) ? errore.messaggio : 'Cassa non aperta: riprova.';
+        disegnaNegozio(messaggio, 'errore');
+    }
+}
+
+/** Nome leggibile di quello che e uscito da una cassa. */
+function nomePremio(vinto) {
+    if (!vinto) return 'qualcosa';
+    const lottatore = lottatoreDelCatalogo(vinto.personaggio);
+    const nomeLottatore = lottatore ? lottatore.nome : vinto.personaggio;
+    if (vinto.tipo === 'skin') {
+        return (vinto.nome || ('skin ' + vinto.skin)) + ' per ' + nomeLottatore;
+    }
+    return nomeLottatore;
 }
 
 /** Chiave unica di una voce del catalogo ("OusmaneDiouf" o "OusmaneDiouf:raro"). */

@@ -289,6 +289,103 @@ function acquista(magazzino, giocatore, chiave) {
     };
 }
 
+/**
+ * Apre una cassa e restituisce quello che è uscito.
+ *
+ * Le casse sostituiscono la vendita separata di skin e verdellinesi: nel
+ * negozio non si compra più il singolo pezzo, si compra una cassa di una delle
+ * tre rarità e quello che esce dipende dai pesi scritti in dati/negozio.json.
+ *
+ * Due regole che rendono il gioco onesto:
+ *  - non esce mai un doppione: i premi già posseduti escono dal sorteggio, e se
+ *    non resta niente la cassa non si apre (e i punti non si spendono);
+ *  - il sorteggio è sul SERVER: il client non decide cosa vince, altrimenti
+ *    basterebbe una modifica nella pagina per regalarsi tutto.
+ *
+ * `dado` è iniettabile così le prove possono forzare un esito.
+ */
+function apriCassa(magazzino, giocatore, idCassa, dado) {
+    const casuale = typeof dado === 'function' ? dado : Math.random;
+    const casse = (NEGOZIO.casse || []);
+    const cassa = casse.find((c) => c.id === idCassa);
+    if (!cassa) {
+        return { ok: false, stato: 404, messaggio: 'Cassa inesistente.' };
+    }
+
+    giocatore.skins = giocatore.skins || [];
+    giocatore.personaggi = giocatore.personaggi || [];
+
+    if (giocatore.punti < cassa.prezzo) {
+        return {
+            ok: false, stato: 402,
+            messaggio: 'Punti insufficienti: ne servono ' + cassa.prezzo + '.'
+        };
+    }
+
+    // Cosa può uscire: i premi dei gruppi, meno quello che il giocatore ha già
+    const posseduti = function (voce) {
+        return voce.skin
+            ? giocatore.skins.includes(chiaveVoce(voce))
+            : giocatore.personaggi.includes(voce.personaggio);
+    };
+
+    const gruppi = [];
+    for (const premio of (cassa.premi || [])) {
+        const voci = NEGOZIO.voci.filter(function (voce) {
+            if (premio.tipo === 'skin' && !voce.skin) return false;
+            if (premio.tipo === 'personaggio' && voce.skin) return false;
+            if (premio.skin && voce.skin !== premio.skin) return false;
+            if (voce.ottenutoAllInizio && !voce.skin) return false; // già di tutti
+            return !posseduti(voce);
+        });
+        if (voci.length > 0) {
+            gruppi.push({ peso: Math.max(1, premio.peso || 1), voci: voci });
+        }
+    }
+
+    if (gruppi.length === 0) {
+        return {
+            ok: false, stato: 409,
+            messaggio: 'Non c\'è più niente da vincere in questa cassa: possiedi già tutto.'
+        };
+    }
+
+    // Primo sorteggio: il gruppo. Secondo: la voce dentro il gruppo.
+    const totalePesi = gruppi.reduce(function (somma, gruppo) { return somma + gruppo.peso; }, 0);
+    let bersaglio = casuale() * totalePesi;
+    let scelto = gruppi[gruppi.length - 1];
+    for (const gruppo of gruppi) {
+        if (bersaglio < gruppo.peso) { scelto = gruppo; break; }
+        bersaglio -= gruppo.peso;
+    }
+
+    const indice = Math.min(scelto.voci.length - 1, Math.floor(casuale() * scelto.voci.length));
+    const vinto = scelto.voci[indice];
+
+    giocatore.punti -= cassa.prezzo;
+    if (vinto.skin) {
+        giocatore.skins.push(chiaveVoce(vinto));
+    } else {
+        giocatore.personaggi.push(vinto.personaggio);
+    }
+    salvaGiocatore(magazzino, giocatore);
+
+    return {
+        ok: true,
+        cassa: cassa.id,
+        vinto: {
+            tipo: vinto.skin ? 'skin' : 'personaggio',
+            personaggio: vinto.personaggio,
+            skin: vinto.skin || null,
+            nome: vinto.skin ? (vinto.nome || (vinto.personaggio + ' ' + vinto.skin)) : vinto.personaggio,
+            icona: vinto.icona || null
+        },
+        punti: giocatore.punti,
+        personaggi: giocatore.personaggi,
+        skins: giocatore.skins
+    };
+}
+
 /** Accredita punti a un giocatore (usato da partite, tornei e missioni). */
 function accredita(magazzino, giocatore, punti) {
     giocatore.punti = Math.max(0, giocatore.punti + Math.round(punti));
@@ -299,5 +396,5 @@ function accredita(magazzino, giocatore, punti) {
 module.exports = {
     regole, negozio, chiaveVoce, personaggiIniziali, pubblico, nickAccettabile,
     iscrivi, accedi, esci, daToken, leggiGiocatore, salvaGiocatore,
-    elencoGiocatori, promuoviAdmin, acquista, accredita
+    elencoGiocatori, promuoviAdmin, acquista, accredita, apriCassa
 };

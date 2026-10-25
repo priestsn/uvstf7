@@ -31,6 +31,7 @@ const GRUPPI_PRINCIPALE = [
         id: 'profilo',
         titolo: 'IL TUO PROFILO',
         voci: [
+            { id: 'verdellinesi', testo: 'VERDELLINESI', nota: 'chi sono e cosa fanno', azione: 'verdellinesi' },
             { id: 'account', testo: 'ACCOUNT', nota: 'accesso e progressi', azione: 'account' },
             { id: 'negozio', testo: 'NEGOZIO', nota: 'sblocca i verdellinesi', azione: 'negozio' },
             { id: 'settings', testo: 'IMPOSTAZIONI', nota: 'schermo e tasti', azione: 'settings' }
@@ -41,7 +42,7 @@ const GRUPPI_PRINCIPALE = [
 // Azioni che js/Menu.js sa eseguire. Una voce con un'azione fuori da questo
 // elenco è un refuso, e il test lo segnala.
 const AZIONI = ['vsLocale', 'vsCpu', 'vsOnline', 'ranked', 'amici', 'classifica',
-    'account', 'negozio', 'settings'];
+    'account', 'negozio', 'settings', 'verdellinesi'];
 
 function vociDi(colonna) {
     const gruppo = GRUPPI_PRINCIPALE[colonna];

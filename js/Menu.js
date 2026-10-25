@@ -382,6 +382,7 @@ const AZIONI_MENU_PRINCIPALE = {
     classifica: () => apriClassifica(),
     account: () => apriAccount(),
     negozio: () => apriNegozio(),
+    verdellinesi: () => apriVerdellinesi(),
     settings: () => apriMenu('settings')
 };
 
@@ -441,10 +442,24 @@ function gestisciInputMenu(evento) {
     if (statoCorrente !== STATI.MENU && statoCorrente !== STATI.PAUSA) {
         // Esc chiude le schermate informative e torna al menu principale:
         // prima la tastiera era muta e da dentro l'account non si usciva.
+        // Nella schermata dei verdellinesi le frecce scorrono le schede.
+        if (statoCorrente === STATI.VERDELLINESI) {
+            if (evento.key === 'ArrowDown' || evento.key === 's' || evento.key === 'S') {
+                evento.preventDefault();
+                scorriVerdellinesi(1);
+                return;
+            }
+            if (evento.key === 'ArrowUp' || evento.key === 'w' || evento.key === 'W') {
+                evento.preventDefault();
+                scorriVerdellinesi(-1);
+                return;
+            }
+        }
+
         if (evento.key === 'Escape') {
             if (statoCorrente === STATI.ACCOUNT || statoCorrente === STATI.NEGOZIO ||
                 statoCorrente === STATI.CLASSIFICA || statoCorrente === STATI.AMICI ||
-                statoCorrente === STATI.CODA) {
+                statoCorrente === STATI.CODA || statoCorrente === STATI.VERDELLINESI) {
 
                 if (statoCorrente === STATI.CODA && typeof annullaCoda === 'function') {
                     annullaCoda();
