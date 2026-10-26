@@ -41,10 +41,13 @@
   <a href="mobile.md">mobile.md</a>.</sub>
 </p>
 
-![Schermata del gioco](screenshot.png)
+<p align="center">
+  <img src="docs/screenshot/08-cutscene.png" alt="La cutscene della ultimate Radici del Baobab" width="920">
+</p>
 
 <p align="center">
-  <em>Partita VS LOCALE: ultimate di Chidi Okonkwo, stato <code>CONGELATO</code> sull'avversario, HUD completo.</em>
+  <em>Quando una ultimate va a segno il gioco si ferma e parte una scena disegnata su misura per quel verdellinese.
+  Qui <strong>Radici del Baobab</strong> di Ousmane Diouf, con il cartello, le barre nere e l'alone del colore del personaggio.</em>
 </p>
 
 ---
@@ -56,7 +59,12 @@
 - [Avvio rapido](#avvio-rapido)
 - [Comandi](#comandi)
 - [Meccaniche di combattimento](#meccaniche-di-combattimento)
+- [La combo universale](#la-combo-universale)
 - [I nove lottatori](#i-nove-lottatori)
+- [Passive, tattiche e attacchi a distanza](#passive-tattiche-e-attacchi-a-distanza)
+- [Le cutscene delle ultimate](#le-cutscene-delle-ultimate)
+- [Punti, negozio e casse](#punti-negozio-e-casse)
+- [Lo sciame e le prove](#lo-sciame-e-le-prove)
 - [VS ONLINE](#vs-online)
 - [Report bug](#report-bug)
 - [Server e messa online](#server-e-messa-online)
@@ -73,9 +81,21 @@
 
 Tutte le immagini sono prese dalla versione attuale del gioco.
 
+| Il combattimento | La combo in aria |
+|---|---|
+| ![Partita](docs/screenshot/05-partita.png) | ![Combo](docs/screenshot/06-combo-in-aria.png) |
+
+| Il bersaglio intangibile | La cutscene di Kwame Mensah |
+|---|---|
+| ![Intangibile](docs/screenshot/07-intangibile.png) | ![Cutscene](docs/screenshot/09-cutscene-kwame.png) |
+
+| Il negozio con le tre casse | La tab dei verdellinesi |
+|---|---|
+| ![Casse](docs/screenshot/04-negozio-casse.png) | ![Verdellinesi](docs/screenshot/02-verdellinesi.png) |
+
 | Menu principale | Selezione del personaggio |
 |---|---|
-| ![Menu](docs/screenshots/menu.png) | ![Selezione](docs/screenshots/selezione.png) |
+| ![Menu](docs/screenshot/01-menu.png) | ![Selezione](docs/screenshot/03-selezione.png) |
 
 | Fine partita con rivincita | Keybinds |
 |---|---|
@@ -94,8 +114,12 @@ Ultra Verdello Street Fight 7 (UVSF7) è un picchiaduro bidimensionale completo,
 **Cosa c'è dentro**
 
 - **Tre modalità**: VS LOCALE (due giocatori, una tastiera), VS CPU (facile, difficile, guissè), VS ONLINE (stanze con codice su server).
-- **Nove lottatori**, ognuno con statistiche, hitbox misurate sui pixel e ultimate propria.
-- **Combattimento tecnico**: parata con *perfect block*, attacco caricato che rompe la parata, stun, stati alterati.
+- **Nove lottatori**, ognuno con statistiche, hitbox misurate sui pixel, **passiva, tattica, attacco a distanza e ultimate propria**.
+- **Una combo universale** valida per tutti: si apre su un avversario stordito, prosegue in aria fino a tre colpi, il terzo spedisce lontano e chi la riceve diventa **intangibile per due secondi**.
+- **Nove cutscene**, una per ultimate: quando la mossa va a segno il gioco si ferma e parte una scena disegnata su misura.
+- **Combattimento tecnico**: parata con *perfect block*, attacco caricato che rompe la parata e stunna, stun, stati alterati, attacchi a distanza come chiusura della combo.
+- **Economia e progressi**: punti senza tetto giornaliero, ranked con ELO, leghe, classifica, amicizie, e **casse di tre rarità** al posto delle vendite separate.
+- **La tab VERDELLINESI** nel menu: la scheda completa di ognuno, passiva e tattica comprese.
 - **HUD completo**: vita, stamina e barra ultimate per entrambi, timer da 60 secondi.
 - **Flusso di gioco completo**: menu principale, sottomenu, pausa, fine partita con rivincita.
 - **Report bug integrato**: il giocatore scrive e invia, il report arriva al server senza scaricare file.
@@ -182,6 +206,8 @@ Dietro Caddy c'è il reverse proxy: gestisce il certificato TLS e inoltra al ser
 | Attacco (tieni premuto per caricare) | `H` | `Ù` |
 | Parata (tieni premuto) | `J` | `À` |
 | Ultimate (a barra piena) | `G` | `L` |
+| Attacco a distanza | `K` | `Ò` |
+| Tattica | `Y` | `Ì` |
 
 | Altro | Tasto |
 |---|---|
@@ -200,6 +226,8 @@ In partita compaiono da soli e solo su dispositivi touch:
 - **leva virtuale** a sinistra: trascina a sinistra o destra per muoverti, verso l'alto per saltare;
 - **ATT**: tienilo premuto per l'attacco caricato, rilascia per colpire;
 - **PAR**: parata finché il dito resta sul tasto;
+- **DIS**: attacco a distanza, il modo per continuare dopo la combo;
+- **TAT**: tattica, diversa per ogni verdellinese;
 - **ULT**: ultimate.
 
 In VS LOCALE ci sono due gruppi con sigla `P1` / `P2`, uno per lato. In VS ONLINE il telefono comanda il giocatore che lo sta usando. Nella schermata di selezione i pulsanti `<` `>` `CONFERMA` e le celle toccabili permettono di giocare senza tastiera.
@@ -225,6 +253,7 @@ In VS LOCALE ci sono due gruppi con sigla `P1` / `P2`, uno per lato. In VS ONLIN
 - **Vita e stamina**: attaccare e parare consumano stamina; la stamina si rigenera ogni due secondi (la bruciatura la blocca).
 - **Parata**: blocca i danni finché hai stamina. Si può avviare solo da terra; saltare annulla la parata.
 - **Perfect block**: parando entro **3 frame** dall'inizio dell'attacco avversario non subisci danno, guadagni **+15** di carica ultimate e l'attaccante resta **stunnato 1 secondo** mostrando l'animazione di danno.
+- **Colpo caricato e stun**: il caricato, quando va a segno, **stunna anche senza parata**. Prima lo faceva solo rompendo una parata, e la combo era quasi irraggiungibile: tre porte d'ingresso sono meglio di una.
 - **Attacco caricato**: tieni premuto l'attacco per **1 secondo** (barra sopra il lottatore e scritta `CARICATO`). Al rilascio il colpo **rompe la parata**, infligge danno e stunna per 1 secondo. Costo: **1,5x** stamina. Durante la carica non puoi muoverti, saltare, parare o usare l'ultimate.
 - **Ultimate**: barra dedicata sotto la stamina, piena in circa **20 secondi**, più veloce con le parate perfette, che si perde quando vieni stunnato (−25). Ogni ultimate ha tipo (mischia, proiettile, buff) ed effetto proprio.
 - **Stun**: blocca movimento, salto, attacco, parata e ultimate; gli input premuti durante lo stun vengono ignorati.
@@ -243,6 +272,37 @@ In VS LOCALE ci sono due gruppi con sigla `P1` / `P2`, uno per lato. In VS ONLIN
 | `MARCHIATO` | +30% danni subiti |
 | `SILENZIO` | niente ultimate, stamina in calo |
 | `VELOCE` | buff: velocità +50%, animazioni −40% |
+
+---
+
+## La combo universale
+
+Una sola combo, uguale per tutti i verdellinesi. Sei regole, nell'ordine in cui sono state pensate:
+
+1. un colpo normale **spinge l'avversario fuori dal raggio**: lo scambio finisce lì;
+2. un colpo su un avversario **stordito** lo porta **leggermente in alto e in avanti**: da lì comincia la combo;
+3. in aria si fanno **fino a tre attacchi consecutivi**;
+4. il **terzo** lo spedisce **lontano** da chi lo ha colpito;
+5. dopo, l'unico modo per continuare è un **attacco a distanza**;
+6. chi riceve la combo diventa **intangibile per un paio di secondi**, lampeggiando bianco.
+
+I numeri, tutti in `js/Combo.js` — un modulo puro, che si prova con `node tools/prova_combo.js` senza aprire il browser:
+
+| Parametro | Valore |
+|---|---|
+| Sollevamento al primo colpo | +60 px in alto, +40 px in avanti |
+| Sospensione fra un colpo e l'altro | 18 fotogrammi, gravità al 30% |
+| Danno dei tre colpi | ×1,00 · ×0,85 · ×0,70 |
+| Spinta del terzo colpo | 320 px/s |
+| Intangibilità | 120 fotogrammi (2 s), lampeggio bianco ogni 6 |
+| Tetto di danno per combo | 45% della vita massima |
+
+<p align="center">
+  <img src="docs/screenshot/06-combo-in-aria.png" alt="Combo in aria con COMBO 2/3 a schermo" width="880">
+  <br><em>Secondo colpo: il bersaglio è sospeso, l'HUD dice <code>COMBO 2/3</code>, e a sinistra si leggono <code>TAT PRONTA</code> e <code>TIRO PRONTO</code>.</em>
+</p>
+
+**Due decisioni che vanno spiegate.** L'intangibilità **parte all'atterraggio**, non dal primo colpo: prese alla lettera, la regola 5 e la regola 6 si contraddicono, perché un bersaglio intangibile non potrebbe essere colpito dal tiro che dovrebbe continuare la combo. All'atterraggio invece la combo è finita davvero, e il tiro è già partito. E se il bersaglio **atterra prima di chiudere i tre colpi**, la combo si perde e non c'è intangibilità: si diventa intangibili solo subendo la combo intera.
 
 ---
 
@@ -279,6 +339,117 @@ Regola di bilanciamento: attacco veloce e corto = meno danno e meno stamina; att
 | Ayo Adebayo | Eclissi Arcana | Proiettile | 26 | Eclissi per 3 s |
 
 I proiettili sono sfere animate disegnate sul canvas: viaggiano in avanti, rompono la parata e applicano danno e stato. Le ultimate da mischia colpiscono una sola volta per attivazione.
+
+**Quando una ultimate va a segno parte una cutscene**: vedi [Le cutscene delle ultimate](#le-cutscene-delle-ultimate).
+
+---
+
+## Passive, tattiche e attacchi a distanza
+
+Ogni verdellinese dice **una cosa sola**: un'identità meccanica. Le tattiche usano **un solo tasto nuovo per tutti** (`Y` / `Ì`): stesso gesto, nove effetti.
+
+| Verdellinese | Passiva | Tattica (costo) |
+|---|---|---|
+| **Ousmane Diouf** | *Mani Callose*: ogni colpo normale a segno restituisce 3 di stamina. Colpisce piano ma non finisce mai il fiato. | *Piantarsi* (25): ti radichi 40 passi, non vieni spinto né spostato. |
+| **Kwame Mensah** | *Passo Leggero*: atterrando non perdi stamina. Saltare è un modo di muoversi, non un costo. | *Scarto* (15): durante una parata riuscita scivoli indietro di 60 px. |
+| **Chidi Okonkwo** | *Pelle Dura*: ignora i colpi che fanno 6 o meno. Contro di lui bisogna colpire pesante. | *Ruggito* (30): un urto che spinge 120 px senza fare danno. |
+| **Amara Diallo** | *Contraccolpo*: ogni colpo che subisce le dà 2 di ultimate. Il dolore è la sua carica. | *In Tempo* (20): colpire entro poco da una parata riuscita fa il 25% in più. |
+| **Tarisai Moyo** | *Radici Profonde*: la stamina si rigenera nel tempo. È l'unica che si stanca davvero poco. | *Cerchio* (25): lascia a terra una zona che rallenta chi ci entra. |
+| **Zuri Nkosi** | *Istinto*: colpire entro 10 passi da un attacco mancato dall'avversario fa il 50% in più. | *Freccia Corta* (18): una freccia che non fa danno e prepara il marchio. |
+| **Bakari Traore** | *Polvere da Sparo*: i proiettili costano il 30% in meno. | *Puntamento* (20): restando fermo, il proiettile successivo è più veloce e più grosso. |
+| **Sekou Camara** | *Voce degli Antenati*: non subisce silenzio né inversione. Nessuno gli spegne le abilità. | *Sentenza* (22): applica silenzio, ma solo se l'avversario è stordito. |
+| **Ayo Adebayo** | *Ultimo Raggio*: sotto il 40% di vita i suoi colpi fanno il 15% in più. Non è mai finito. | *Eclissi Minore* (30): spegne la vista all'avversario per un secondo. |
+
+**Attacchi a distanza**: danno 12 per tutti (sono la chiusura della combo, non la fonte di danno), 20 stamina, ricarica 90 fotogrammi.
+
+| Verdellinese | Nome | Velocità | Nota |
+|---|---|---:|---|
+| Ousmane Diouf | Seme del Baobab | 7 | lento ma sicuro |
+| Kwame Mensah | Lame di Vento | 13 | il più rapido |
+| Chidi Okonkwo | Onda d'Urto | 6 | grosso, raggio 26 |
+| Amara Diallo | Passo Doppio | 10 | piccolo, difficile da vedere |
+| Tarisai Moyo | Polline | 9 | applica veleno |
+| **Zuri Nkosi** | **Freccia del Ritorno** | 11 | **speciale: nessun danno, stunna chi la para, teletrasporta dietro chi la prende** |
+| Bakari Traore | Stella Cadente | 10 | danno 14 |
+| Sekou Camara | Sguardo degli Antenati | 8 | applica silenzio |
+| Ayo Adebayo | Raggio d'Eclissi | 12 | danno 14 |
+
+---
+
+## Le cutscene delle ultimate
+
+Le ultimate restano quelle della tabella qui sopra — alcune da mischia, altre a distanza — ma quando **vanno a segno** il gioco si ferma per circa un secondo e mezzo e parte una scena disegnata per quel personaggio: **sipario** (barre nere, mondo desaturato), **gesto** (quello che solo lui sa fare), **colpo** (fermo immagine, flash, il nome della mossa) e **ritorno**.
+
+| Verdellinese | Scena | Il gesto unico |
+|---|---|---|
+| Ousmane Diouf | RADICI DEL BAOBAB | la telecamera striscia **a terra**: il baobab è sotto, non sopra |
+| Kwame Mensah | VORTICE DI VENTO | **il mondo si inclina** di 15° e non torna finché non scatta dritto |
+| Chidi Okonkwo | RUGGITO DEL LEONE | **un secondo di immobilità assoluta** prima del ruggito |
+| Amara Diallo | DANZA FULMINEA | tre ombre che danzano e rientrano in lei |
+| Tarisai Moyo | CERCHIO ANCESTRALE | **inquadratura dall'alto**: il campo diventa una mappa |
+| Zuri Nkosi | FRECCIA DELLA SAVANA | il punto di vista **è la freccia** che attraversa lo schermo |
+| Bakari Traore | PIOGGIA DI STELLE | **il cielo**, che il gioco non aveva mai mostrato |
+| Sekou Camara | GIUDIZIO DEGLI ANTENATI | le icone dei comandi del nemico **si spengono** una per una |
+| Ayo Adebayo | ECLISSI ARCANA | **sei passi di nero assoluto** |
+
+<p align="center">
+  <img src="docs/screenshot/09-cutscene-kwame.png" alt="La cutscene di Kwame Mensah con il mondo inclinato" width="880">
+  <br><em>Kwame: l'inclinazione piega il fondale <strong>e</strong> gli attori, non solo gli sprite — la rotazione del canvas vale solo per ciò che si disegna dopo.</em>
+</p>
+
+**Il danno arriva alla fine della scena**, non prima: il colpo si vede tutto, e la scena non è un intermezzo decorativo sopra un calcolo già fatto. I copioni stanno in `js/Cutscene.js` come **dati** (fasi contate in passi, durate 86-94 passi), il disegno proprio di ognuno in `js/EffettiCutscene.js`: aggiungere una scena domani significa aggiungere un elemento all'elenco.
+
+---
+
+## Punti, negozio e casse
+
+I punti si guadagnano giocando, **senza alcun tetto giornaliero**:
+
+| Esito | Punti |
+|---|---:|
+| Vittoria | 300 |
+| Pareggio | 200 |
+| Sconfitta | 120 |
+
+Nel negozio **non si comprano più skin e verdellinesi separatamente**: si comprano **tre casse**. Il sorteggio sta **sul server** (`apriCassa` in `server/account.js`): una modifica al client non regala niente. Il server sceglie prima la categoria con i pesi, poi il premio dentro la categoria, e **non fa mai uscire un doppione**: i premi che possiedi escono dal sorteggio, e se non resta niente la cassa non si apre e i punti non si toccano.
+
+| Cassa | Prezzo | Cosa può uscire | Verdellinese (misurato su 200 estrazioni) |
+|---|---:|---|---:|
+| Comune | 400 | skin rare, verdellinesi, skin ombrose | 27% |
+| Rara | 900 | skin ombrose, verdellinesi, skin rare | ~35% |
+| Epica | 1.800 | verdellinesi, skin ombrose | 56% |
+
+<p align="center">
+  <img src="docs/screenshot/04-negozio-casse.png" alt="Il negozio con le tre casse" width="880">
+  <br><em>Le tre casse si distinguono dal colore del bordo; sotto ognuna c'è scritto cosa può uscire, così non è una scatola cieca.</em>
+</p>
+
+Le skin che possiedi restano nel negozio per **indossarle**, senza prezzo.
+
+---
+
+## Lo sciame e le prove
+
+Oltre alle prove automatiche, il gioco è sorvegliato da uno **sciame di bot veri**: persone finte che si iscrivono, stringono amicizie, comprano, giocano ranked fra loro e alla fine dicono che cosa pretendono dal gioco. Ogni bot è un processo Chrome pilotato via CDP, e ogni corsa produce un file di eventi leggibile: `bug_reports/swarm-*/eventi.jsonl`.
+
+Capacità misurata con `tools/swarm/capacita.js` — quanti bot regge una macchina senza scendere sotto i 60 passi al secondo, che è il ritmo del gioco:
+
+| Macchina | Bot | Passi al secondo |
+|---|---:|---|
+| PC di sviluppo (Ryzen 5 5600G, 16 GB) | 12 | 60 tutti |
+| BC-250 (12 core, memoria unificata) | 12 | 64-69 |
+
+In una corsa notturna tipica: **630 partite**, 105 giri di verifica, **0 percorsi d'errore falliti, 0 invarianti violate**, persistenza dei dati confermata al ricaricamento.
+
+Le prove sono **36 file** e si lanciano una per una, ognuna stampa `OK`/`FALLITO` riga per riga e chiude col conteggio (un test che non dice quanti controlli ha fatto non è verificabile):
+
+```bash
+node tools/prova_motore.js       # motore: collisioni, stati, fine partita
+node tools/prova_combo.js        # combo: moltiplicatori, tetto di danno, intangibilità
+node tools/prova_cutscene.js     # i nove copioni: durate, fasi, ripetibilità
+node tools/prova_casse.js        # casse: doppioni, punti, probabilità
+node tools/prova_invarianti.js   # invarianti del gioco
+```
 
 ---
 
@@ -464,7 +635,16 @@ js/Keybinds.js        tasti rimappabili: dati, salvataggio, schermata
 js/Report.js          pannello report bug e invio al server
 js/Menu.js            menu come dati, voci WIP, suggerimenti, fullscreen
 js/Classi.js          classi Sprite e Lottatore: animazioni, hitbox, attacco
-js/Personaggi.js      dati dei 9 lottatori, sprite, bilanciamento
+js/Verdellinesi.js    dati dei 9 lottatori: statistiche, sprite, passiva, tattica, distanza, ultimate
+js/Combo.js           la combo universale come modulo puro (fasi, moltiplicatori, tetto)
+js/Cutscene.js        i nove copioni delle scene, come dati
+js/EffettiCutscene.js il disegno proprio di ogni scena
+js/Roster.js          la tab VERDELLINESI del menu
+js/Negozio.js         il negozio con le tre casse
+js/Account.js         sessione, profilo, possessi, skin indossate
+js/Classifica.js      classifica per ELO
+js/Amici.js           amicizie e sfide
+js/Coda.js            coda ranked
 js/Selezione.js       scelta del personaggio, diversa per modalità
 js/CPU.js             avversario controllato dal computer, tre difficoltà
 js/Rete.js            collegamento WebSocket con il server
@@ -478,15 +658,15 @@ sviluppo.md           piano a fasi, decisioni, tabelle di bilanciamento
 bugs.md               32 bug con causa, fix e verifiche
 ```
 
-| File | Righe |
-|---|---:|
-| `index.js` | 1331 |
-| `js/` (12 file) | 3713 |
-| `server/server.js` | 671 |
-| `css/style.css` | 1126 |
-| `index.html` | 142 |
+| Area | Righe | File |
+|---|---:|---:|
+| `index.js` (motore) | 2.982 | 1 |
+| `js/` (moduli del client) | 8.583 | 35 |
+| `server/` | 2.834 | 5 |
+| `tools/prova_*.js` (prove) | 4.158 | 36 |
+| `tools/swarm/` (sciame) | 5.985 | 32 |
 
-Circa **5.000 righe di JavaScript** scritte a mano, senza generare nulla a partire da framework.
+Circa **14.500 righe** di JavaScript scritte a mano, senza framework, senza bundler e senza una sola dipendenza npm.
 
 ### Ordine di caricamento degli script
 
@@ -507,7 +687,10 @@ L'ordine conta: gli script condividono lo scope globale e usano solo dichiarazio
 - **Host autoritativo in rete**: un solo simulatore, niente rollback né predizione. L'ospite vede lo stato con la latenza della rete.
 - **Input a strati**: tasto fisico → `azioneDaTasto()` → `premiAzione()`. Tastiera, keybinds, comandi touch e ospite online passano tutti da qui.
 - **Misure dai pixel**: `scale`, `offset`, hitbox e frame d'impatto di ogni personaggio sono stati misurati sui fogli reali; su schermi stretti tutto viene riscalato con un unico fattore, così le collisioni restano coerenti.
-- **Dati, non codice**: menu, personaggi e keybinds sono tabelle; aggiungere una voce o un lottatore non richiede toccare il game loop.
+- **Dati, non codice**: menu, personaggi, casse e keybinds sono tabelle; aggiungere una voce, una cassa o un lottatore non richiede toccare il game loop.
+- **Le scene sono copioni, non codice**: `js/Cutscene.js` elenca fasi contate in passi, il motore le esegue. È lo stesso schema della cerimonia di fine partita, e garantisce che due client mostrino la stessa scena fotogramma per fotogramma.
+- **I moduli puri si provano senza browser**: `Combo.js`, `Regole.js`, `Comandi.js` non toccano il DOM, quindi le loro prove girano in un decimo di secondo con Node.
+- **Il server è l'unica autorità sull'economia**: punti, acquisti e contenuto delle casse si decidono lì.
 
 ---
 
@@ -521,12 +704,18 @@ L'ordine conta: gli script condividono lo scope globale e usano solo dichiarazio
 | 4 | VS CPU con tre difficoltà | completata |
 | 5 | VS ONLINE: server, stanze, fotogrammi di stato | completata |
 | 6 | Keybinds, touch, rivincita, selezione per modalità, report sul server | completata |
+| 7 | Account, punti, ELO, leghe, classifica, amicizie, sfide | completata |
+| 8 | Combo universale, attacchi a distanza, passive e tattiche dei nove | completata |
+| 9 | Nove cutscene delle ultimate, tab VERDELLINESI, casse nel negozio | completata |
+| 10 | Sciame di bot e prove automatiche | completata |
 
-**Ancora aperto (marcato WIP nel progetto)**
+**Ancora aperto**
 
 - animazioni di parata: `parry.png` di alcuni personaggi è ancora un segnaposto;
 - salto e caduta di Bakari Traore sono provvisori (assenti nel pacchetto originale);
-- effetti sonori e musica: non ancora iniziati.
+- effetti sonori e musica: non ancora iniziati — le cutscene si reggono su camera, colore e testo;
+- **i bot non sfruttano ancora tutte le meccaniche**: nelle partite fra loro raramente arrivano a caricare la ultimate o a chiudere una combo. La misura esiste e lo dice; il lavoro che manca è sulla qualità del combattimento dei bot, non sul gioco;
+- l'uscita dal menu dopo una rivincita non è sempre libera quando l'altro giocatore è già uscito.
 
 ---
 

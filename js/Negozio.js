@@ -237,7 +237,7 @@ function schedaCassa(cassa) {
 
     const esiti = cassa.premiPossibili || [];
     if (esiti.length > 0) {
-        scheda.appendChild(negozioCrea('div', 'negozio-nota', 'Puo uscire: ' + esiti.join(' - ')));
+        scheda.appendChild(negozioCrea('div', 'negozio-nota', 'Può uscire: ' + esiti.join(' - ')));
     }
 
     scheda.appendChild(negozioCrea('div', 'negozio-prezzo', (cassa.prezzo || 0) + ' punti'));
